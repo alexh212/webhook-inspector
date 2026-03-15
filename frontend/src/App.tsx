@@ -47,14 +47,12 @@ export default function App() {
 
   const onMouseMoveSidebar = useCallback((e: MouseEvent) => {
     if (!isResizingSidebar.current) return;
-    const newWidth = Math.min(Math.max(e.clientX, 160), 400);
-    setSidebarWidth(newWidth);
+    setSidebarWidth(Math.min(Math.max(e.clientX, 160), 400));
   }, []);
 
   const onMouseMoveFeed = useCallback((e: MouseEvent) => {
     if (!isResizingFeed.current) return;
-    const newWidth = Math.min(Math.max(e.clientX - sidebarWidth, 200), 600);
-    setFeedWidth(newWidth);
+    setFeedWidth(Math.min(Math.max(e.clientX - sidebarWidth, 200), 600));
   }, [sidebarWidth]);
 
   const stopResize = useCallback(() => {
@@ -166,7 +164,6 @@ export default function App() {
 
   return (
     <div className="layout">
-      {/* Sidebar */}
       <div className="sidebar" style={{ width: sidebarWidth }}>
         <div className="sidebar-header">
           <div className="logo">Webhook Inspector</div>
@@ -210,11 +207,10 @@ export default function App() {
         />
       </div>
 
-      {/* Main */}
       <div className="main">
         {!selected ? (
           <div className="empty-state">
-            <div className="empty-state-icon">⚡</div>
+            <div className="empty-state-icon">↪</div>
             <div className="empty-state-text">Create or select an endpoint</div>
           </div>
         ) : (
@@ -227,7 +223,6 @@ export default function App() {
               <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
             </div>
             <div className="content-area">
-              {/* Feed */}
               <div className="feed" style={{ width: feedWidth }}>
                 <div className="feed-meta">
                   {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: "#4ade80" }}>● live</span>
@@ -255,7 +250,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Feed resize handle */}
               <div
                 style={{ width: 4, cursor: "col-resize", flexShrink: 0, background: "transparent", borderRight: "1px solid #1a1a1a" }}
                 onMouseDown={() => {
@@ -267,7 +261,6 @@ export default function App() {
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
               />
 
-              {/* Detail */}
               <div className="detail">
                 {!detail ? (
                   <div className="detail-empty">← Select a request to inspect</div>
