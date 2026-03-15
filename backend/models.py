@@ -23,3 +23,15 @@ class CapturedRequest(Base):
     source_ip = Column(String(45))
     content_type = Column(String(255))
     received_at = Column(DateTime, default=datetime.utcnow)
+
+class DeliveryAttempt(Base):
+    __tablename__ = "delivery_attempts"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    request_id = Column(UUID(as_uuid=True), ForeignKey("captured_requests.id"))
+    destination_url = Column(Text, nullable=False)
+    status_code = Column(String(10), nullable=True)
+    response_headers = Column(JSONB, nullable=True)
+    response_body = Column(Text, nullable=True)
+    duration_ms = Column(String(20), nullable=True)
+    error = Column(Text, nullable=True)
+    attempted_at = Column(DateTime, default=datetime.utcnow)

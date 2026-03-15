@@ -9,6 +9,7 @@ type RequestDetail = {
   body: string; query_params: Record<string, string>;
   source_ip: string; content_type: string; received_at: string;
 };
+type ReplayResult = { status_code: string; response_body: string; duration_ms: string; error: string | null };
 
 function timeAgo(date: string) {
   const seconds = Math.floor((Date.now() - new Date(date + "Z").getTime()) / 1000);
@@ -33,6 +34,10 @@ export default function App() {
   const [detail, setDetail] = useState<RequestDetail | null>(null);
   const [newName, setNewName] = useState("");
   const [copied, setCopied] = useState(false);
+  const [replayUrl, setReplayUrl] = useState("http://localhost:9000");
+  const [replayBody, setReplayBody] = useState<string | null>(null);
+  const [replayResult, setReplayResult] = useState<ReplayResult | null>(null);
+  const [replaying, setReplaying] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/api/endpoints`).then(r => r.json()).then(setEndpoints);
@@ -43,7 +48,6 @@ export default function App() {
     setDetail(null);
     fetch(`${API}/api/endpoints/${selected.id}/requests`)
       .then(r => r.json()).then(setRequests);
-
     const ws = new WebSocket(`ws://localhost:8000/ws/endpoints/${selected.id}`);
     ws.onmessage = (event) => {
       const newRequest = JSON.parse(event.data);
@@ -71,6 +75,8 @@ export default function App() {
     const res = await fetch(`${API}/api/requests/${id}`);
     const data = await res.json();
     setDetail(data);
+    setReplayBody(data.body);
+    setReplayResult(null);
   };
 
   const hookUrl = selected ? `http://localhost:8000/hooks/${selected.id}` : "";
@@ -79,6 +85,20 @@ export default function App() {
     navigator.clipboard.writeText(hookUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const replay = async () => {
+    if (!detail) return;
+    setReplaying(true);
+    setReplayResult(null);
+    const res = await fetch(`${API}/api/requests/${detail.id}/replay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ destination_url: replayUrl, body_override: replayBody }),
+    });
+    const data = await res.json();
+    setReplayResult(data);
+    setReplaying(false);
   };
 
   return (
@@ -123,8 +143,7 @@ export default function App() {
         .detail-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #333; font-size: 12px; }
         .detail-section { margin-bottom: 28px; }
         .detail-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; font-weight: 500; }
-        .detail-meta-row { display: flex; gap: 24px; margin-bottom: 28px; }
-        .detail-meta-item { }
+        .detail-meta-row { display: flex; gap: 24px; margin-bottom: 28px; flex-wrap: wrap; }
         .detail-meta-val { font-size: 13px; color: #ededed; font-family: monospace; margin-top: 4px; }
         .kv-table { width: 100%; border-collapse: collapse; }
         .kv-table tr { border-bottom: 1px solid #1a1a1a; }
@@ -133,6 +152,17 @@ export default function App() {
         .kv-table td:first-child { color: #555; width: 40%; padding-right: 16px; }
         .kv-table td:last-child { color: #ededed; word-break: break-all; }
         .body-block { background: #111; border: 1px solid #1a1a1a; border-radius: 6px; padding: 14px; font-size: 12px; font-family: monospace; color: #ededed; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+        .replay-section { margin-top: 28px; padding-top: 28px; border-top: 1px solid #1a1a1a; }
+        .replay-input { width: 100%; height: 32px; background: #111; border: 1px solid #222; border-radius: 6px; padding: 0 10px; font-size: 12px; font-family: monospace; color: #ededed; outline: none; margin-bottom: 8px; }
+        .replay-input:focus { border-color: #444; }
+        .replay-textarea { width: 100%; background: #111; border: 1px solid #222; border-radius: 6px; padding: 10px; font-size: 12px; font-family: monospace; color: #ededed; outline: none; resize: vertical; min-height: 80px; margin-bottom: 8px; }
+        .replay-textarea:focus { border-color: #444; }
+        .replay-btn { height: 32px; padding: 0 16px; background: #ededed; color: #0a0a0a; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; }
+        .replay-btn:hover { background: #d4d4d4; }
+        .replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .replay-result { margin-top: 12px; padding: 12px; background: #111; border: 1px solid #1a1a1a; border-radius: 6px; font-size: 12px; font-family: monospace; }
+        .replay-result.success { border-color: #1a3a2a; }
+        .replay-result.error { border-color: #3a1a1a; }
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #333; }
         .empty-state-icon { font-size: 28px; }
         .empty-state-text { font-size: 13px; }
@@ -182,7 +212,6 @@ export default function App() {
                 <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
               </div>
               <div className="content-area">
-                {/* Feed */}
                 <div className="feed">
                   <div className="feed-meta">
                     {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{color: "#4ade80"}}>● live</span>
@@ -204,26 +233,25 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Detail panel */}
                 <div className="detail">
                   {!detail ? (
                     <div className="detail-empty">← Select a request to inspect</div>
                   ) : (
                     <>
                       <div className="detail-meta-row">
-                        <div className="detail-meta-item">
+                        <div>
                           <div className="detail-label">Method</div>
                           <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
                         </div>
-                        <div className="detail-meta-item">
+                        <div>
                           <div className="detail-label">Source IP</div>
                           <div className="detail-meta-val">{detail.source_ip}</div>
                         </div>
-                        <div className="detail-meta-item">
+                        <div>
                           <div className="detail-label">Received</div>
                           <div className="detail-meta-val">{timeAgo(detail.received_at)}</div>
                         </div>
-                        <div className="detail-meta-item">
+                        <div>
                           <div className="detail-label">Content-Type</div>
                           <div className="detail-meta-val">{detail.content_type || "—"}</div>
                         </div>
@@ -241,7 +269,7 @@ export default function App() {
                           <div className="detail-label">Query Params</div>
                           <table className="kv-table">
                             {Object.entries(detail.query_params).map(([k, v]) => (
-                              <tr key={k}><td>{k}</td><td>{v}</td></tr>
+                              <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
                             ))}
                           </table>
                         </div>
@@ -251,9 +279,42 @@ export default function App() {
                         <div className="detail-label">Headers</div>
                         <table className="kv-table">
                           {Object.entries(detail.headers).map(([k, v]) => (
-                            <tr key={k}><td>{k}</td><td>{v}</td></tr>
+                            <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
                           ))}
                         </table>
+                      </div>
+
+                      <div className="replay-section">
+                        <div className="detail-label" style={{marginBottom: 12}}>Replay</div>
+                        <input
+                          className="replay-input"
+                          value={replayUrl}
+                          onChange={e => setReplayUrl(e.target.value)}
+                          placeholder="Destination URL"
+                        />
+                        <textarea
+                          className="replay-textarea"
+                          value={replayBody || ""}
+                          onChange={e => setReplayBody(e.target.value)}
+                          placeholder="Request body (edit before replaying)"
+                        />
+                        <button className="replay-btn" onClick={replay} disabled={replaying}>
+                          {replaying ? "Sending..." : "↩ Replay"}
+                        </button>
+                        {replayResult && (
+                          <div className={`replay-result ${replayResult.error ? "error" : "success"}`}>
+                            {replayResult.error ? (
+                              <span style={{color: "#f87171"}}>Error: {replayResult.error}</span>
+                            ) : (
+                              <>
+                                <span style={{color: "#4ade80"}}>{replayResult.status_code}</span>
+                                <span style={{color: "#555", margin: "0 8px"}}>·</span>
+                                <span style={{color: "#555"}}>{replayResult.duration_ms}ms</span>
+                                <div style={{marginTop: 8, color: "#888"}}>{replayResult.response_body?.slice(0, 200)}</div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

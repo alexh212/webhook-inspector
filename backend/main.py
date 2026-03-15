@@ -119,3 +119,67 @@ async def websocket_feed(websocket: WebSocket, endpoint_id: str):
     finally:
         await pubsub.unsubscribe(f"endpoint:{endpoint_id}")
         await sub_redis.close()
+
+
+# ── Replay ──────────────────────────────────────────────────────────────────
+
+from models import DeliveryAttempt
+import httpx, time
+
+class ReplayRequest(BaseModel):
+    destination_url: str
+    body_override: Optional[str] = None
+
+@app.post("/api/requests/{request_id}/replay")
+async def replay_request(request_id: str, body: ReplayRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    headers = dict(r.headers)
+    headers.pop("host", None)
+    headers.pop("content-length", None)
+
+    payload = body.body_override if body.body_override is not None else r.body
+
+    attempt = DeliveryAttempt(request_id=r.id, destination_url=body.destination_url)
+
+    start = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.request(
+                method=r.method,
+                url=body.destination_url,
+                headers=headers,
+                content=payload.encode() if payload else b"",
+            )
+        attempt.status_code = str(response.status_code)
+        attempt.response_headers = dict(response.headers)
+        attempt.response_body = response.text
+        attempt.duration_ms = str(round((time.time() - start) * 1000))
+    except Exception as e:
+        attempt.error = str(e)
+
+    db.add(attempt)
+    await db.commit()
+    await db.refresh(attempt)
+
+    return {
+        "id": str(attempt.id),
+        "status_code": attempt.status_code,
+        "response_body": attempt.response_body,
+        "duration_ms": attempt.duration_ms,
+        "error": attempt.error,
+    }
+
+@app.get("/api/requests/{request_id}/attempts")
+async def list_attempts(request_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(DeliveryAttempt)
+        .where(DeliveryAttempt.request_id == uuid.UUID(request_id))
+        .order_by(DeliveryAttempt.attempted_at.desc())
+    )
+    attempts = result.scalars().all()
+    return [{"id": str(a.id), "destination_url": a.destination_url, "status_code": a.status_code,
+             "duration_ms": a.duration_ms, "error": a.error, "attempted_at": a.attempted_at} for a in attempts]
