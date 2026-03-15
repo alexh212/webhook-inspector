@@ -2,6 +2,23 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+function getSessionId(): string {
+  let id = localStorage.getItem("wi_session_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("wi_session_id", id);
+  }
+  return id;
+}
+
+const SESSION_ID = getSessionId();
+
+const apiFetch = (url: string, options: RequestInit = {}) =>
+  fetch(`${API}${url}`, {
+    ...options,
+    headers: { ...options.headers as Record<string, string>, "x-session-id": SESSION_ID },
+  });
+
 type Endpoint = { id: string; name: string; created_at: string };
 type CapturedRequest = { id: string; method: string; content_type: string; source_ip: string; received_at: string };
 type RequestDetail = {
@@ -74,18 +91,16 @@ export default function App() {
   }, [onMouseMoveSidebar, onMouseMoveFeed, stopResize]);
 
   useEffect(() => {
-    fetch(`${API}/api/endpoints`).then(r => r.json()).then(setEndpoints);
+    apiFetch("/api/endpoints").then(r => r.json()).then(setEndpoints);
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     if (!selected) return;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     setDetail(null);
     setRequests([]);
     setAttempts([]);
-    fetch(`${API}/api/endpoints/${selected.id}/requests`)
-      .then(r => r.json()).then(setRequests);
-    const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${selected.id}`);
+    apiFetch(`/api/endpoints/${selected.id}/requests`).then(r => r.json()).then(setRequests);
+    const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${selected.id}?session_id=${SESSION_ID}`);
     ws.onmessage = (event) => {
       const newRequest = JSON.parse(event.data);
       setRequests(prev => [newRequest, ...prev]);
@@ -94,19 +109,19 @@ useEffect(() => {
   }, [selected?.id]);
 
   const loadAttempts = async (id: string) => {
-      const res = await fetch(`${API}/api/requests/${id}/attempts`);
-      const data = await res.json();
-      setAttempts(data);
-    };
+    const res = await apiFetch(`/api/requests/${id}/attempts`);
+    const data = await res.json();
+    setAttempts(data);
+  };
 
-    useEffect(() => {
-      if (!detail) return;
-      const interval = setInterval(() => loadAttempts(detail.id), 5000);
-      return () => clearInterval(interval);
-    }, [detail?.id]);
-    
+  useEffect(() => {
+    if (!detail) return;
+    const interval = setInterval(() => loadAttempts(detail.id), 5000);
+    return () => clearInterval(interval);
+  }, [detail?.id]);
+
   const loadDetail = async (id: string) => {
-    const res = await fetch(`${API}/api/requests/${id}`);
+    const res = await apiFetch(`/api/requests/${id}`);
     const data = await res.json();
     setDetail(data);
     setReplayBody(data.body);
@@ -116,7 +131,7 @@ useEffect(() => {
   };
 
   const createEndpoint = async () => {
-    const res = await fetch(`${API}/api/endpoints`, {
+    const res = await apiFetch("/api/endpoints", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newName || "Untitled" }),
@@ -142,7 +157,7 @@ useEffect(() => {
     if (!detail) return;
     setReplaying(true);
     setReplayResult(null);
-    const res = await fetch(`${API}/api/requests/${detail.id}/replay`, {
+    const res = await apiFetch(`/api/requests/${detail.id}/replay`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ destination_url: replayUrl, body_override: replayBody }),
@@ -154,13 +169,13 @@ useEffect(() => {
   };
 
   const deleteEndpoint = async (id: string) => {
-    await fetch(`${API}/api/endpoints/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/endpoints/${id}`, { method: "DELETE" });
     setEndpoints(prev => prev.filter(ep => ep.id !== id));
     if (selected?.id === id) { setSelected(null); setRequests([]); setDetail(null); }
   };
 
   const deleteRequest = async (id: string) => {
-    await fetch(`${API}/api/requests/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/requests/${id}`, { method: "DELETE" });
     setRequests(prev => prev.filter(r => r.id !== id));
     if (detail?.id === id) setDetail(null);
   };

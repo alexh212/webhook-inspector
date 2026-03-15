@@ -10,6 +10,7 @@ class Endpoint(Base):
     __tablename__ = "endpoints"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=True)
+    session_id = Column(String(64), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class CapturedRequest(Base):
@@ -35,3 +36,5 @@ class DeliveryAttempt(Base):
     duration_ms = Column(String(20), nullable=True)
     error = Column(Text, nullable=True)
     attempted_at = Column(DateTime, default=datetime.utcnow)
+
+
