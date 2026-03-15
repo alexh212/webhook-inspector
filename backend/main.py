@@ -1,3 +1,6 @@
+import uuid, json, time, os
+import redis.asyncio as aioredis
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,18 +10,17 @@ from database import AsyncSessionLocal
 from models import Endpoint, CapturedRequest, DeliveryAttempt
 from pydantic import BaseModel
 from typing import Optional
-import uuid, json, time, os
-import redis.asyncio as aioredis
-import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = FastAPI(title="WebhookInspector")
 
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*", "x-session-id"],
 )
