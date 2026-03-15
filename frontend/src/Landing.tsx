@@ -200,7 +200,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   const [requests, setRequests] = useState<LiveRequest[]>([]);
   const [endpointId, setEndpointId] = useState<string | null>(null);
   const [selected, setSelected] = useState<LiveRequest | null>(null);
-  const [copied, setCopied] = useState(false);
   const [curlCopied, setCurlCopied] = useState(false);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
   const [replayUrl, setReplayUrl] = useState("https://httpbin.org/post");
