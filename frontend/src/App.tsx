@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 type Endpoint = { id: string; name: string; created_at: string };
 type CapturedRequest = { id: string; method: string; content_type: string; source_ip: string; received_at: string };
@@ -48,7 +48,7 @@ export default function App() {
     setDetail(null);
     fetch(`${API}/api/endpoints/${selected.id}/requests`)
       .then(r => r.json()).then(setRequests);
-    const ws = new WebSocket(`ws://localhost:8000/ws/endpoints/${selected.id}`);
+    const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${selected.id}`);
     ws.onmessage = (event) => {
       const newRequest = JSON.parse(event.data);
       setRequests(prev => [newRequest, ...prev]);
