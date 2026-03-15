@@ -22,7 +22,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
-    allow_headers=["*", "x-session-id"],
+    allow_headers=["*"],
+    allow_credentials=False,
 )
 
 redis_client = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
