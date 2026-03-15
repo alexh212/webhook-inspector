@@ -1,0 +1,102 @@
+import asyncio
+import json
+import time
+import os
+from dotenv import load_dotenv
+import redis.asyncio as aioredis
+import httpx
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+from models import CapturedRequest, DeliveryAttempt
+import uuid
+from datetime import datetime
+
+load_dotenv()
+
+engine = create_async_engine(os.getenv("DATABASE_URL"))
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+redis_client = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+
+async def enqueue_retry(request_id: str, destination_url: str, attempt_number: int):
+    if attempt_number >= 5:
+        print(f"[worker] Max retries reached for {request_id}")
+        return
+
+    delay_seconds = 5 ** attempt_number
+    execute_at = time.time() + delay_seconds
+    job = json.dumps({
+        "request_id": request_id,
+        "destination_url": destination_url,
+        "attempt_number": attempt_number,
+        "execute_at": execute_at,
+    })
+    await redis_client.zadd("retry_queue", {job: execute_at})
+    print(f"[worker] Queued retry {attempt_number} for {request_id} in {delay_seconds}s")
+
+async def process_job(job_data: str):
+    job = json.loads(job_data)
+    request_id = job["request_id"]
+    destination_url = job["destination_url"]
+    attempt_number = job["attempt_number"]
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+        r = result.scalar_one_or_none()
+        if not r:
+            print(f"[worker] Request {request_id} not found, skipping")
+            return
+
+        headers = dict(r.headers)
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+
+        attempt = DeliveryAttempt(
+            request_id=r.id,
+            destination_url=destination_url,
+        )
+
+        start = time.time()
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.request(
+                    method=r.method,
+                    url=destination_url,
+                    headers=headers,
+                    content=r.body.encode() if r.body else b"",
+                )
+            attempt.status_code = str(response.status_code)
+            attempt.response_body = response.text
+            attempt.duration_ms = str(round((time.time() - start) * 1000))
+
+            if response.status_code >= 500:
+                print(f"[worker] Attempt {attempt_number} failed with {response.status_code}, re-queuing")
+                db.add(attempt)
+                await db.commit()
+                await enqueue_retry(request_id, destination_url, attempt_number + 1)
+            else:
+                print(f"[worker] Attempt {attempt_number} succeeded with {response.status_code}")
+                db.add(attempt)
+                await db.commit()
+
+        except Exception as e:
+            attempt.error = str(e)
+            print(f"[worker] Attempt {attempt_number} errored: {e}, re-queuing")
+            db.add(attempt)
+            await db.commit()
+            await enqueue_retry(request_id, destination_url, attempt_number + 1)
+
+async def retry_worker():
+    print("[worker] Starting retry worker...")
+    while True:
+        now = time.time()
+        jobs = await redis_client.zrangebyscore("retry_queue", "-inf", now)
+
+        for job_data in jobs:
+            await redis_client.zrem("retry_queue", job_data)
+            await process_job(job_data)
+
+        await asyncio.sleep(1)
+
+if __name__ == "__main__":
+    asyncio.run(retry_worker())

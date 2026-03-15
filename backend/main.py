@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import get_db
-from models import Endpoint, CapturedRequest
+from models import Endpoint, CapturedRequest, DeliveryAttempt
 from pydantic import BaseModel
 from typing import Optional
-import uuid, json
+import uuid, json, time
 import redis.asyncio as aioredis
+import httpx
 from dotenv import load_dotenv
 import os
 
@@ -24,8 +25,25 @@ app.add_middleware(
 
 redis_client = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
 
+async def enqueue_retry(request_id: str, destination_url: str, attempt_number: int):
+    if attempt_number >= 5:
+        return
+    delay_seconds = 5 ** attempt_number
+    execute_at = time.time() + delay_seconds
+    job = json.dumps({
+        "request_id": request_id,
+        "destination_url": destination_url,
+        "attempt_number": attempt_number,
+        "execute_at": execute_at,
+    })
+    await redis_client.zadd("retry_queue", {job: execute_at})
+
 class EndpointCreate(BaseModel):
     name: Optional[str] = None
+
+class ReplayRequest(BaseModel):
+    destination_url: str
+    body_override: Optional[str] = None
 
 @app.get("/health")
 async def health():
@@ -66,7 +84,6 @@ async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession =
     await db.commit()
     await db.refresh(captured)
 
-    # Publish to Redis pub/sub
     await redis_client.publish(
         f"endpoint:{endpoint_id}",
         json.dumps({
@@ -77,7 +94,6 @@ async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession =
             "received_at": captured.received_at.isoformat(),
         })
     )
-
     return {"status": "received"}
 
 @app.get("/api/endpoints/{endpoint_id}/requests")
@@ -104,12 +120,9 @@ async def get_request(request_id: str, db: AsyncSession = Depends(get_db)):
 @app.websocket("/ws/endpoints/{endpoint_id}")
 async def websocket_feed(websocket: WebSocket, endpoint_id: str):
     await websocket.accept()
-
-    # Each subscriber needs its own Redis connection
     sub_redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
     pubsub = sub_redis.pubsub()
     await pubsub.subscribe(f"endpoint:{endpoint_id}")
-
     try:
         async for message in pubsub.listen():
             if message["type"] == "message":
@@ -119,16 +132,6 @@ async def websocket_feed(websocket: WebSocket, endpoint_id: str):
     finally:
         await pubsub.unsubscribe(f"endpoint:{endpoint_id}")
         await sub_redis.close()
-
-
-# ── Replay ──────────────────────────────────────────────────────────────────
-
-from models import DeliveryAttempt
-import httpx, time
-
-class ReplayRequest(BaseModel):
-    destination_url: str
-    body_override: Optional[str] = None
 
 @app.post("/api/requests/{request_id}/replay")
 async def replay_request(request_id: str, body: ReplayRequest, db: AsyncSession = Depends(get_db)):
@@ -142,7 +145,6 @@ async def replay_request(request_id: str, body: ReplayRequest, db: AsyncSession 
     headers.pop("content-length", None)
 
     payload = body.body_override if body.body_override is not None else r.body
-
     attempt = DeliveryAttempt(request_id=r.id, destination_url=body.destination_url)
 
     start = time.time()
@@ -158,8 +160,13 @@ async def replay_request(request_id: str, body: ReplayRequest, db: AsyncSession 
         attempt.response_headers = dict(response.headers)
         attempt.response_body = response.text
         attempt.duration_ms = str(round((time.time() - start) * 1000))
+
+        if response.status_code >= 500:
+            await enqueue_retry(str(r.id), body.destination_url, 1)
+
     except Exception as e:
         attempt.error = str(e)
+        await enqueue_retry(str(r.id), body.destination_url, 1)
 
     db.add(attempt)
     await db.commit()
