@@ -28,12 +28,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!selected) return;
-    const load = () => fetch(`${API}/api/endpoints/${selected.id}/requests`).then(r => r.json()).then(setRequests);
-    load();
-    const interval = setInterval(load, 3000);
-    return () => clearInterval(interval);
-  }, [selected]);
+      if (!selected) return;
+      // Load existing requests on select
+      fetch(`${API}/api/endpoints/${selected.id}/requests`)
+        .then(r => r.json()).then(setRequests);
+
+      // Open WebSocket for live updates
+      const ws = new WebSocket(`ws://localhost:8000/ws/endpoints/${selected.id}`);
+      ws.onmessage = (event) => {
+        const newRequest = JSON.parse(event.data);
+        setRequests(prev => [newRequest, ...prev]);
+      };
+      return () => ws.close();
+    }, [selected]);
 
   const createEndpoint = async () => {
     const res = await fetch(`${API}/api/endpoints`, {
@@ -63,94 +70,38 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0a0a0a; color: #ededed; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-
         .layout { display: flex; height: 100vh; }
-
-        .sidebar {
-          width: 240px; flex-shrink: 0; border-right: 1px solid #1a1a1a;
-          display: flex; flex-direction: column;
-        }
-
-        .sidebar-header {
-          padding: 20px 16px 16px;
-          border-bottom: 1px solid #1a1a1a;
-        }
-
+        .sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid #1a1a1a; }
         .logo { font-size: 13px; font-weight: 600; color: #ededed; letter-spacing: -0.3px; margin-bottom: 14px; }
-
         .input-row { display: flex; gap: 6px; }
-
-        .ep-input {
-          flex: 1; height: 32px; background: #111; border: 1px solid #222;
-          border-radius: 6px; padding: 0 10px; font-size: 12px;
-          font-family: 'Inter', sans-serif; color: #ededed; outline: none;
-          transition: border-color 0.15s;
-        }
+        .ep-input { flex: 1; height: 32px; background: #111; border: 1px solid #222; border-radius: 6px; padding: 0 10px; font-size: 12px; font-family: 'Inter', sans-serif; color: #ededed; outline: none; transition: border-color 0.15s; }
         .ep-input::placeholder { color: #444; }
         .ep-input:focus { border-color: #444; }
-
-        .add-btn {
-          height: 32px; width: 32px; background: #ededed; color: #0a0a0a;
-          border: none; border-radius: 6px; font-size: 16px; cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 500; transition: background 0.15s; flex-shrink: 0;
-        }
+        .add-btn { height: 32px; width: 32px; background: #ededed; color: #0a0a0a; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 500; transition: background 0.15s; flex-shrink: 0; }
         .add-btn:hover { background: #d4d4d4; }
-
         .ep-list { flex: 1; overflow-y: auto; padding: 8px; }
-
-        .ep-item {
-          padding: 8px 10px; border-radius: 6px; cursor: pointer;
-          border: 1px solid transparent; margin-bottom: 2px; transition: all 0.15s;
-        }
+        .ep-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; margin-bottom: 2px; transition: all 0.15s; }
         .ep-item:hover { background: #111; }
         .ep-item.active { background: #111; border-color: #333; }
         .ep-name { font-size: 12px; color: #ededed; font-weight: 500; }
         .ep-id { font-size: 10px; color: #444; margin-top: 2px; font-family: monospace; }
-
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-
-        .main-header {
-          padding: 20px 28px; border-bottom: 1px solid #1a1a1a;
-          display: flex; align-items: center; justify-content: space-between;
-        }
-
+        .main-header { padding: 20px 28px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between; }
         .hook-label { font-size: 11px; color: #555; margin-bottom: 4px; }
         .hook-url { font-size: 12px; color: #888; font-family: monospace; }
-
-        .copy-btn {
-          height: 30px; padding: 0 14px; background: transparent; border: 1px solid #222;
-          border-radius: 6px; color: #888; font-size: 11px; font-family: 'Inter', sans-serif;
-          cursor: pointer; transition: all 0.15s;
-        }
+        .copy-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid #222; border-radius: 6px; color: #888; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
         .copy-btn:hover { border-color: #444; color: #ededed; }
-
         .feed { flex: 1; overflow-y: auto; padding: 20px 28px; }
-
         .feed-meta { font-size: 11px; color: #444; margin-bottom: 16px; }
-
-        .empty {
-          border: 1px dashed #1a1a1a; border-radius: 8px;
-          padding: 40px; text-align: center; color: #333; font-size: 12px;
-        }
-
-        .req-row {
-          display: flex; align-items: center; gap: 14px;
-          padding: 10px 14px; margin-bottom: 6px;
-          background: #111; border: 1px solid #1a1a1a;
-          border-radius: 8px; transition: border-color 0.15s; cursor: pointer;
-        }
+        .empty { border: 1px dashed #1a1a1a; border-radius: 8px; padding: 40px; text-align: center; color: #333; font-size: 12px; }
+        .req-row { display: flex; align-items: center; gap: 20px; padding: 10px 14px; margin-bottom: 6px; background: #111; border: 1px solid #1a1a1a; border-radius: 8px; transition: border-color 0.15s; cursor: pointer; }
         .req-row:hover { border-color: #2a2a2a; }
-
         .method { font-size: 11px; font-weight: 600; font-family: monospace; min-width: 48px; }
-        .req-type { font-size: 12px; color: #555; flex: 1; }
-        .req-ip { font-size: 11px; color: #333; }
-        .req-time { font-size: 11px; color: #444; }
-
-        .empty-state {
-          flex: 1; display: flex; align-items: center; justify-content: center;
-          flex-direction: column; gap: 8px; color: #333;
-        }
+        .req-type { font-size: 12px; color: #555; flex: 1; min-width: 160px; }
+        .req-ip { font-size: 11px; color: #333; min-width: 80px; }
+        .req-time { font-size: 11px; color: #444; white-space: nowrap; }
+        .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #333; }
         .empty-state-icon { font-size: 28px; }
         .empty-state-text { font-size: 13px; }
       `}</style>
@@ -199,7 +150,7 @@ export default function App() {
                 <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
               </div>
               <div className="feed">
-                <div className="feed-meta">{requests.length} request{requests.length !== 1 ? "s" : ""} — polling every 3s</div>
+          <div className="feed-meta">{requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{color: "#4ade80"}}>● live</span></div>
                 {requests.length === 0 ? (
                   <div className="empty">No requests yet. Fire a curl at the URL above.</div>
                 ) : (

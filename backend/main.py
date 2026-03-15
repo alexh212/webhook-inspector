@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -6,16 +6,23 @@ from database import get_db
 from models import Endpoint, CapturedRequest
 from pydantic import BaseModel
 from typing import Optional
-import uuid
+import uuid, json
+import redis.asyncio as aioredis
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = FastAPI(title="WebhookInspector")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5174"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+redis_client = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
 
 class EndpointCreate(BaseModel):
     name: Optional[str] = None
@@ -57,6 +64,20 @@ async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession =
     )
     db.add(captured)
     await db.commit()
+    await db.refresh(captured)
+
+    # Publish to Redis pub/sub
+    await redis_client.publish(
+        f"endpoint:{endpoint_id}",
+        json.dumps({
+            "id": str(captured.id),
+            "method": captured.method,
+            "content_type": captured.content_type,
+            "source_ip": captured.source_ip,
+            "received_at": captured.received_at.isoformat(),
+        })
+    )
+
     return {"status": "received"}
 
 @app.get("/api/endpoints/{endpoint_id}/requests")
@@ -79,3 +100,22 @@ async def get_request(request_id: str, db: AsyncSession = Depends(get_db)):
     return {"id": str(r.id), "method": r.method, "headers": r.headers,
             "body": r.body, "query_params": r.query_params,
             "source_ip": r.source_ip, "content_type": r.content_type, "received_at": r.received_at}
+
+@app.websocket("/ws/endpoints/{endpoint_id}")
+async def websocket_feed(websocket: WebSocket, endpoint_id: str):
+    await websocket.accept()
+
+    # Each subscriber needs its own Redis connection
+    sub_redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+    pubsub = sub_redis.pubsub()
+    await pubsub.subscribe(f"endpoint:{endpoint_id}")
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                await websocket.send_text(message["data"].decode())
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await pubsub.unsubscribe(f"endpoint:{endpoint_id}")
+        await sub_redis.close()
