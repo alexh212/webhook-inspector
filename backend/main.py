@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import get_db
@@ -8,6 +9,13 @@ from typing import Optional
 import uuid
 
 app = FastAPI(title="WebhookInspector")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5174"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class EndpointCreate(BaseModel):
     name: Optional[str] = None
