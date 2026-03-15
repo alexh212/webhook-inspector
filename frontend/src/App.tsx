@@ -77,9 +77,12 @@ export default function App() {
     fetch(`${API}/api/endpoints`).then(r => r.json()).then(setEndpoints);
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
     if (!selected) return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setDetail(null);
+    setRequests([]);
+    setAttempts([]);
     fetch(`${API}/api/endpoints/${selected.id}/requests`)
       .then(r => r.json()).then(setRequests);
     const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${selected.id}`);
@@ -88,20 +91,20 @@ export default function App() {
       setRequests(prev => [newRequest, ...prev]);
     };
     return () => ws.close();
-  }, [selected]);
-
-  useEffect(() => {
-    if (!detail) return;
-    const interval = setInterval(() => loadAttempts(detail.id), 5000);
-    return () => clearInterval(interval);
-  }, [detail?.id]);
+  }, [selected?.id]);
 
   const loadAttempts = async (id: string) => {
-    const res = await fetch(`${API}/api/requests/${id}/attempts`);
-    const data = await res.json();
-    setAttempts(data);
-  };
+      const res = await fetch(`${API}/api/requests/${id}/attempts`);
+      const data = await res.json();
+      setAttempts(data);
+    };
 
+    useEffect(() => {
+      if (!detail) return;
+      const interval = setInterval(() => loadAttempts(detail.id), 5000);
+      return () => clearInterval(interval);
+    }, [detail?.id]);
+    
   const loadDetail = async (id: string) => {
     const res = await fetch(`${API}/api/requests/${id}`);
     const data = await res.json();
