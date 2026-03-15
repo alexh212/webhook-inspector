@@ -4,6 +4,11 @@ const API = "http://localhost:8000";
 
 type Endpoint = { id: string; name: string; created_at: string };
 type CapturedRequest = { id: string; method: string; content_type: string; source_ip: string; received_at: string };
+type RequestDetail = {
+  id: string; method: string; headers: Record<string, string>;
+  body: string; query_params: Record<string, string>;
+  source_ip: string; content_type: string; received_at: string;
+};
 
 function timeAgo(date: string) {
   const seconds = Math.floor((Date.now() - new Date(date + "Z").getTime()) / 1000);
@@ -16,10 +21,16 @@ const METHOD_COLOR: Record<string, string> = {
   GET: "#4ade80", POST: "#60a5fa", PUT: "#fb923c", DELETE: "#f87171", PATCH: "#c084fc"
 };
 
+function tryFormatJson(str: string) {
+  try { return JSON.stringify(JSON.parse(str), null, 2); }
+  catch { return str; }
+}
+
 export default function App() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [selected, setSelected] = useState<Endpoint | null>(null);
   const [requests, setRequests] = useState<CapturedRequest[]>([]);
+  const [detail, setDetail] = useState<RequestDetail | null>(null);
   const [newName, setNewName] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -28,19 +39,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-      if (!selected) return;
-      // Load existing requests on select
-      fetch(`${API}/api/endpoints/${selected.id}/requests`)
-        .then(r => r.json()).then(setRequests);
+    if (!selected) return;
+    setDetail(null);
+    fetch(`${API}/api/endpoints/${selected.id}/requests`)
+      .then(r => r.json()).then(setRequests);
 
-      // Open WebSocket for live updates
-      const ws = new WebSocket(`ws://localhost:8000/ws/endpoints/${selected.id}`);
-      ws.onmessage = (event) => {
-        const newRequest = JSON.parse(event.data);
-        setRequests(prev => [newRequest, ...prev]);
-      };
-      return () => ws.close();
-    }, [selected]);
+    const ws = new WebSocket(`ws://localhost:8000/ws/endpoints/${selected.id}`);
+    ws.onmessage = (event) => {
+      const newRequest = JSON.parse(event.data);
+      setRequests(prev => [newRequest, ...prev]);
+    };
+    return () => ws.close();
+  }, [selected]);
 
   const createEndpoint = async () => {
     const res = await fetch(`${API}/api/endpoints`, {
@@ -53,7 +63,14 @@ export default function App() {
     setEndpoints(prev => [newEp, ...prev]);
     setSelected(newEp);
     setRequests([]);
+    setDetail(null);
     setNewName("");
+  };
+
+  const loadDetail = async (id: string) => {
+    const res = await fetch(`${API}/api/requests/${id}`);
+    const data = await res.json();
+    setDetail(data);
   };
 
   const hookUrl = selected ? `http://localhost:8000/hooks/${selected.id}` : "";
@@ -87,20 +104,35 @@ export default function App() {
         .ep-name { font-size: 12px; color: #ededed; font-weight: 500; }
         .ep-id { font-size: 10px; color: #444; margin-top: 2px; font-family: monospace; }
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .main-header { padding: 20px 28px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between; }
+        .main-header { padding: 16px 24px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between; }
         .hook-label { font-size: 11px; color: #555; margin-bottom: 4px; }
         .hook-url { font-size: 12px; color: #888; font-family: monospace; }
-        .copy-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid #222; border-radius: 6px; color: #888; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
+        .copy-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid #222; border-radius: 6px; color: #888; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
         .copy-btn:hover { border-color: #444; color: #ededed; }
-        .feed { flex: 1; overflow-y: auto; padding: 20px 28px; }
-        .feed-meta { font-size: 11px; color: #444; margin-bottom: 16px; }
-        .empty { border: 1px dashed #1a1a1a; border-radius: 8px; padding: 40px; text-align: center; color: #333; font-size: 12px; }
-        .req-row { display: flex; align-items: center; gap: 20px; padding: 10px 14px; margin-bottom: 6px; background: #111; border: 1px solid #1a1a1a; border-radius: 8px; transition: border-color 0.15s; cursor: pointer; }
-        .req-row:hover { border-color: #2a2a2a; }
-        .method { font-size: 11px; font-weight: 600; font-family: monospace; min-width: 48px; }
-        .req-type { font-size: 12px; color: #555; flex: 1; min-width: 160px; }
-        .req-ip { font-size: 11px; color: #333; min-width: 80px; }
+        .content-area { flex: 1; display: flex; overflow: hidden; }
+        .feed { width: 380px; flex-shrink: 0; border-right: 1px solid #1a1a1a; overflow-y: auto; padding: 16px; }
+        .feed-meta { font-size: 11px; color: #444; margin-bottom: 12px; }
+        .empty { border: 1px dashed #1a1a1a; border-radius: 8px; padding: 32px; text-align: center; color: #333; font-size: 12px; }
+        .req-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 4px; background: #111; border: 1px solid #1a1a1a; border-radius: 8px; cursor: pointer; transition: border-color 0.15s; }
+        .req-row:hover { border-color: #333; }
+        .req-row.active { border-color: #444; background: #161616; }
+        .method { font-size: 11px; font-weight: 600; font-family: monospace; min-width: 44px; }
+        .req-type { font-size: 11px; color: #555; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .req-time { font-size: 11px; color: #444; white-space: nowrap; }
+        .detail { flex: 1; overflow-y: auto; padding: 24px; }
+        .detail-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #333; font-size: 12px; }
+        .detail-section { margin-bottom: 28px; }
+        .detail-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; font-weight: 500; }
+        .detail-meta-row { display: flex; gap: 24px; margin-bottom: 28px; }
+        .detail-meta-item { }
+        .detail-meta-val { font-size: 13px; color: #ededed; font-family: monospace; margin-top: 4px; }
+        .kv-table { width: 100%; border-collapse: collapse; }
+        .kv-table tr { border-bottom: 1px solid #1a1a1a; }
+        .kv-table tr:last-child { border-bottom: none; }
+        .kv-table td { padding: 6px 0; font-size: 12px; font-family: monospace; vertical-align: top; }
+        .kv-table td:first-child { color: #555; width: 40%; padding-right: 16px; }
+        .kv-table td:last-child { color: #ededed; word-break: break-all; }
+        .body-block { background: #111; border: 1px solid #1a1a1a; border-radius: 6px; padding: 14px; font-size: 12px; font-family: monospace; color: #ededed; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #333; }
         .empty-state-icon { font-size: 28px; }
         .empty-state-text { font-size: 13px; }
@@ -149,20 +181,83 @@ export default function App() {
                 </div>
                 <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
               </div>
-              <div className="feed">
-          <div className="feed-meta">{requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{color: "#4ade80"}}>● live</span></div>
-                {requests.length === 0 ? (
-                  <div className="empty">No requests yet. Fire a curl at the URL above.</div>
-                ) : (
-                  requests.map(r => (
-                    <div key={r.id} className="req-row">
-                      <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
-                      <span className="req-type">{r.content_type || "no content-type"}</span>
-                      <span className="req-ip">{r.source_ip}</span>
-                      <span className="req-time">{timeAgo(r.received_at)}</span>
-                    </div>
-                  ))
-                )}
+              <div className="content-area">
+                {/* Feed */}
+                <div className="feed">
+                  <div className="feed-meta">
+                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{color: "#4ade80"}}>● live</span>
+                  </div>
+                  {requests.length === 0 ? (
+                    <div className="empty">No requests yet. Fire a curl at the URL above.</div>
+                  ) : (
+                    requests.map(r => (
+                      <div
+                        key={r.id}
+                        className={`req-row ${detail?.id === r.id ? "active" : ""}`}
+                        onClick={() => loadDetail(r.id)}
+                      >
+                        <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
+                        <span className="req-type">{r.content_type || "no content-type"}</span>
+                        <span className="req-time">{timeAgo(r.received_at)}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Detail panel */}
+                <div className="detail">
+                  {!detail ? (
+                    <div className="detail-empty">← Select a request to inspect</div>
+                  ) : (
+                    <>
+                      <div className="detail-meta-row">
+                        <div className="detail-meta-item">
+                          <div className="detail-label">Method</div>
+                          <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
+                        </div>
+                        <div className="detail-meta-item">
+                          <div className="detail-label">Source IP</div>
+                          <div className="detail-meta-val">{detail.source_ip}</div>
+                        </div>
+                        <div className="detail-meta-item">
+                          <div className="detail-label">Received</div>
+                          <div className="detail-meta-val">{timeAgo(detail.received_at)}</div>
+                        </div>
+                        <div className="detail-meta-item">
+                          <div className="detail-label">Content-Type</div>
+                          <div className="detail-meta-val">{detail.content_type || "—"}</div>
+                        </div>
+                      </div>
+
+                      {detail.body && (
+                        <div className="detail-section">
+                          <div className="detail-label">Body</div>
+                          <div className="body-block">{tryFormatJson(detail.body)}</div>
+                        </div>
+                      )}
+
+                      {Object.keys(detail.query_params || {}).length > 0 && (
+                        <div className="detail-section">
+                          <div className="detail-label">Query Params</div>
+                          <table className="kv-table">
+                            {Object.entries(detail.query_params).map(([k, v]) => (
+                              <tr key={k}><td>{k}</td><td>{v}</td></tr>
+                            ))}
+                          </table>
+                        </div>
+                      )}
+
+                      <div className="detail-section">
+                        <div className="detail-label">Headers</div>
+                        <table className="kv-table">
+                          {Object.entries(detail.headers).map(([k, v]) => (
+                            <tr key={k}><td>{k}</td><td>{v}</td></tr>
+                          ))}
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </>
           )}
