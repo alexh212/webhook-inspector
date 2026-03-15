@@ -10,6 +10,7 @@ type RequestDetail = {
   source_ip: string; content_type: string; received_at: string;
 };
 type ReplayResult = { status_code: string; response_body: string; duration_ms: string; error: string | null };
+type DeliveryAttempt = { id: string; destination_url: string; status_code: string | null; duration_ms: string | null; error: string | null; attempted_at: string };
 
 function timeAgo(date: string) {
   const seconds = Math.floor((Date.now() - new Date(date + "Z").getTime()) / 1000);
@@ -38,6 +39,7 @@ export default function App() {
   const [replayBody, setReplayBody] = useState<string | null>(null);
   const [replayResult, setReplayResult] = useState<ReplayResult | null>(null);
   const [replaying, setReplaying] = useState(false);
+  const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
 
   useEffect(() => {
     fetch(`${API}/api/endpoints`).then(r => r.json()).then(setEndpoints);
@@ -71,12 +73,13 @@ export default function App() {
     setNewName("");
   };
 
-  const loadDetail = async (id: string) => {
+const loadDetail = async (id: string) => {
     const res = await fetch(`${API}/api/requests/${id}`);
     const data = await res.json();
     setDetail(data);
     setReplayBody(data.body);
     setReplayResult(null);
+    loadAttempts(id);
   };
 
   const hookUrl = selected ? `http://localhost:8000/hooks/${selected.id}` : "";
@@ -87,7 +90,7 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const replay = async () => {
+const replay = async () => {
     if (!detail) return;
     setReplaying(true);
     setReplayResult(null);
@@ -98,6 +101,7 @@ export default function App() {
     });
     const data = await res.json();
     setReplayResult(data);
+    loadAttempts(detail.id);  // reload attempts after replay
     setReplaying(false);
   };
 
@@ -113,12 +117,22 @@ export default function App() {
     if (detail?.id === id) setDetail(null);
   };
 
+  const loadAttempts = async (id: string) => {
+  const res = await fetch(`${API}/api/requests/${id}/attempts`);
+  const data = await res.json();
+  setAttempts(data);
+};
+
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0a0a0a; color: #ededed; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .attempts-list { margin-top: 12px; }
+        .attempt-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #1a1a1a; font-size: 12px; font-family: monospace; }
+        .attempt-row:last-child { border-bottom: none; }
+        .attempt-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         .layout { display: flex; height: 100vh; }
         .sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; }
         .sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid #1a1a1a; }
@@ -305,6 +319,27 @@ export default function App() {
                           ))}
                         </table>
                       </div>
+
+                      {attempts.length > 0 && (
+                        <div className="detail-section">
+                          <div className="detail-label">Delivery Attempts</div>
+                          <div className="attempts-list">
+                            {attempts.map(a => (
+                              <div key={a.id} className="attempt-row">
+                                <div className="attempt-dot" style={{
+                                  background: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c"
+                                }} />
+                                <span style={{color: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c"}}>
+                                  {a.error ? "Error" : a.status_code}
+                                </span>
+                                <span style={{color: "#555", flex: 1}} >{a.destination_url}</span>
+                                <span style={{color: "#444"}}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
+                                <span style={{color: "#444"}}>{timeAgo(a.attempted_at)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="replay-section">
                         <div className="detail-label" style={{marginBottom: 12}}>Replay</div>

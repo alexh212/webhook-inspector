@@ -190,3 +190,24 @@ async def list_attempts(request_id: str, db: AsyncSession = Depends(get_db)):
     attempts = result.scalars().all()
     return [{"id": str(a.id), "destination_url": a.destination_url, "status_code": a.status_code,
              "duration_ms": a.duration_ms, "error": a.error, "attempted_at": a.attempted_at} for a in attempts]
+
+
+@app.delete("/api/endpoints/{endpoint_id}")
+async def delete_endpoint(endpoint_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Endpoint).where(Endpoint.id == uuid.UUID(endpoint_id)))
+    ep = result.scalar_one_or_none()
+    if not ep:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+    await db.delete(ep)
+    await db.commit()
+    return {"status": "deleted"}
+
+@app.delete("/api/requests/{request_id}")
+async def delete_request(request_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    await db.delete(r)
+    await db.commit()
+    return {"status": "deleted"}
