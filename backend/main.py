@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import get_db
+from database import AsyncSessionLocal
 from models import Endpoint, CapturedRequest, DeliveryAttempt
 from pydantic import BaseModel
 from typing import Optional
@@ -168,7 +169,6 @@ async def get_request(
 async def websocket_feed(websocket: WebSocket, endpoint_id: str, session_id: Optional[str] = None):
     await websocket.accept()
 
-    from database import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Endpoint).where(Endpoint.id == uuid.UUID(endpoint_id)))
         ep = result.scalar_one_or_none()
