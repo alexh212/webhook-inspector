@@ -15,7 +15,7 @@ class Endpoint(Base):
 class CapturedRequest(Base):
     __tablename__ = "captured_requests"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    endpoint_id = Column(UUID(as_uuid=True), ForeignKey("endpoints.id"))
+    endpoint_id = Column(UUID(as_uuid=True), ForeignKey("endpoints.id", ondelete="CASCADE"))
     method = Column(String(10))
     headers = Column(JSONB)
     body = Column(Text)

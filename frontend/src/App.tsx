@@ -101,6 +101,18 @@ export default function App() {
     setReplaying(false);
   };
 
+  const deleteEndpoint = async (id: string) => {
+  await fetch(`${API}/api/endpoints/${id}`, { method: "DELETE" });
+  setEndpoints(prev => prev.filter(ep => ep.id !== id));
+  if (selected?.id === id) { setSelected(null); setRequests([]); setDetail(null); }
+};
+
+  const deleteRequest = async (id: string) => {
+    await fetch(`${API}/api/requests/${id}`, { method: "DELETE" });
+    setRequests(prev => prev.filter(r => r.id !== id));
+    if (detail?.id === id) setDetail(null);
+  };
+
   return (
     <>
       <style>{`
@@ -189,7 +201,13 @@ export default function App() {
             )}
             {endpoints.map(ep => (
               <div key={ep.id} className={`ep-item ${selected?.id === ep.id ? "active" : ""}`} onClick={() => setSelected(ep)}>
-                <div className="ep-name">{ep.name}</div>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                  <div className="ep-name">{ep.name}</div>
+                  <span onClick={e => { e.stopPropagation(); deleteEndpoint(ep.id); }}
+                    style={{color:"#444", fontSize:14, cursor:"pointer", padding:"0 2px"}}
+                    onMouseEnter={e => (e.currentTarget.style.color="#f87171")}
+                    onMouseLeave={e => (e.currentTarget.style.color="#444")}>×</span>
+                </div>
                 <div className="ep-id">{ep.id.slice(0, 14)}...</div>
               </div>
             ))}
@@ -226,10 +244,14 @@ export default function App() {
                         onClick={() => loadDetail(r.id)}
                       >
                         <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
-                        <span className="req-type">{r.content_type || "no content-type"}</span>
-                        <span className="req-time">{timeAgo(r.received_at)}</span>
-                      </div>
-                    ))
+                          <span className="req-type">{r.content_type || "no content-type"}</span>
+  <span className="req-time">{timeAgo(r.received_at)}</span>
+  <span onClick={e => { e.stopPropagation(); deleteRequest(r.id); }}
+    style={{color:"#333", fontSize:14, cursor:"pointer", marginLeft:4}}
+    onMouseEnter={e => (e.currentTarget.style.color="#f87171")}
+    onMouseLeave={e => (e.currentTarget.style.color="#333")}>×</span>
+                        </div>
+                      ))
                   )}
                 </div>
 
