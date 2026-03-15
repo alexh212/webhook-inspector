@@ -58,6 +58,28 @@ export default function App() {
     return () => ws.close();
   }, [selected]);
 
+  useEffect(() => {
+    if (!detail) return;
+    const interval = setInterval(() => loadAttempts(detail.id), 5000);
+    return () => clearInterval(interval);
+  }, [detail?.id]);
+
+  const loadAttempts = async (id: string) => {
+    const res = await fetch(`${API}/api/requests/${id}/attempts`);
+    const data = await res.json();
+    setAttempts(data);
+  };
+
+  const loadDetail = async (id: string) => {
+    const res = await fetch(`${API}/api/requests/${id}`);
+    const data = await res.json();
+    setDetail(data);
+    setReplayBody(data.body);
+    setReplayResult(null);
+    setAttempts([]);
+    loadAttempts(id);
+  };
+
   const createEndpoint = async () => {
     const res = await fetch(`${API}/api/endpoints`, {
       method: "POST",
@@ -73,16 +95,7 @@ export default function App() {
     setNewName("");
   };
 
-const loadDetail = async (id: string) => {
-    const res = await fetch(`${API}/api/requests/${id}`);
-    const data = await res.json();
-    setDetail(data);
-    setReplayBody(data.body);
-    setReplayResult(null);
-    loadAttempts(id);
-  };
-
-  const hookUrl = selected ? `http://localhost:8000/hooks/${selected.id}` : "";
+  const hookUrl = selected ? `${API}/hooks/${selected.id}` : "";
 
   const copyUrl = () => {
     navigator.clipboard.writeText(hookUrl);
@@ -90,7 +103,7 @@ const loadDetail = async (id: string) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-const replay = async () => {
+  const replay = async () => {
     if (!detail) return;
     setReplaying(true);
     setReplayResult(null);
@@ -101,27 +114,21 @@ const replay = async () => {
     });
     const data = await res.json();
     setReplayResult(data);
-    loadAttempts(detail.id);  // reload attempts after replay
+    loadAttempts(detail.id);
     setReplaying(false);
   };
 
   const deleteEndpoint = async (id: string) => {
-  await fetch(`${API}/api/endpoints/${id}`, { method: "DELETE" });
-  setEndpoints(prev => prev.filter(ep => ep.id !== id));
-  if (selected?.id === id) { setSelected(null); setRequests([]); setDetail(null); }
-};
+    await fetch(`${API}/api/endpoints/${id}`, { method: "DELETE" });
+    setEndpoints(prev => prev.filter(ep => ep.id !== id));
+    if (selected?.id === id) { setSelected(null); setRequests([]); setDetail(null); }
+  };
 
   const deleteRequest = async (id: string) => {
     await fetch(`${API}/api/requests/${id}`, { method: "DELETE" });
     setRequests(prev => prev.filter(r => r.id !== id));
     if (detail?.id === id) setDetail(null);
   };
-
-  const loadAttempts = async (id: string) => {
-  const res = await fetch(`${API}/api/requests/${id}/attempts`);
-  const data = await res.json();
-  setAttempts(data);
-};
 
   return (
     <>
@@ -258,14 +265,14 @@ const replay = async () => {
                         onClick={() => loadDetail(r.id)}
                       >
                         <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
-                          <span className="req-type">{r.content_type || "no content-type"}</span>
-  <span className="req-time">{timeAgo(r.received_at)}</span>
-  <span onClick={e => { e.stopPropagation(); deleteRequest(r.id); }}
-    style={{color:"#333", fontSize:14, cursor:"pointer", marginLeft:4}}
-    onMouseEnter={e => (e.currentTarget.style.color="#f87171")}
-    onMouseLeave={e => (e.currentTarget.style.color="#333")}>×</span>
-                        </div>
-                      ))
+                        <span className="req-type">{r.content_type || "no content-type"}</span>
+                        <span className="req-time">{timeAgo(r.received_at)}</span>
+                        <span onClick={e => { e.stopPropagation(); deleteRequest(r.id); }}
+                          style={{color:"#333", fontSize:14, cursor:"pointer", marginLeft:4}}
+                          onMouseEnter={e => (e.currentTarget.style.color="#f87171")}
+                          onMouseLeave={e => (e.currentTarget.style.color="#333")}>×</span>
+                      </div>
+                    ))
                   )}
                 </div>
 
@@ -332,7 +339,7 @@ const replay = async () => {
                                 <span style={{color: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c"}}>
                                   {a.error ? "Error" : a.status_code}
                                 </span>
-                                <span style={{color: "#555", flex: 1}} >{a.destination_url}</span>
+                                <span style={{color: "#555", flex: 1}}>{a.destination_url}</span>
                                 <span style={{color: "#444"}}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
                                 <span style={{color: "#444"}}>{timeAgo(a.attempted_at)}</span>
                               </div>
