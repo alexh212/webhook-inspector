@@ -27,7 +27,7 @@ class CapturedRequest(Base):
 class DeliveryAttempt(Base):
     __tablename__ = "delivery_attempts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    request_id = Column(UUID(as_uuid=True), ForeignKey("captured_requests.id"))
+    request_id = Column(UUID(as_uuid=True), ForeignKey("captured_requests.id", ondelete="CASCADE"))
     destination_url = Column(Text, nullable=False)
     status_code = Column(String(10), nullable=True)
     response_headers = Column(JSONB, nullable=True)
