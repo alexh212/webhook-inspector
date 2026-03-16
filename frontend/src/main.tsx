@@ -7,7 +7,7 @@ import Landing from './Landing.tsx'
 function Root() {
   const [showLanding, setShowLanding] = useState(true);
   if (showLanding) return <Landing onEnter={() => setShowLanding(false)} />;
-  return <App />;
+  return <App onBack={() => setShowLanding(true)} />;
 }
 
 createRoot(document.getElementById('root')!).render(
