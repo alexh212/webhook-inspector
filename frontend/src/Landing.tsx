@@ -14,170 +14,29 @@ type LiveRequest = {
 };
 
 const DEMO_PAYLOADS = [
-  {
-    method: "POST",
-    body: {
-      event: "sms.received",
-      from: "+1234567890",
-      to: "+0987654321",
-      body: "Hello from Twilio!",
-      message_sid: "SM123abc",
-      num_media: "0"
-    }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "push",
-      repository: { name: "my-repo", owner: "octocat" },
-      ref: "refs/heads/main",
-      commits: [
-        { id: "abc123", message: "Update README", author: { name: "octocat", email: "octocat@github.com" } }
-      ],
-      pusher: { name: "octocat" }
-    }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "error.occurred",
-      service: "auth",
-      error_code: "INVALID_TOKEN",
-      message: "JWT expired",
-      timestamp: "2025-03-16T12:34:56Z"
-    }
-  },
+  { method: "POST", body: { event: "sms.received", from: "+1234567890", to: "+0987654321", body: "Hello from Twilio!", message_sid: "SM123abc", num_media: "0" } },
+  { method: "POST", body: { event: "push", repository: { name: "my-repo", owner: "octocat" }, ref: "refs/heads/main", commits: [{ id: "abc123", message: "Update README", author: { name: "octocat" } }], pusher: { name: "octocat" } } },
+  { method: "POST", body: { event: "error.occurred", service: "auth", error_code: "INVALID_TOKEN", message: "JWT expired", timestamp: "2025-03-16T12:34:56Z" } },
   { method: "GET", body: null },
-  {
-    method: "POST",
-    body: { event: "customer.created", id: "cus_456", email: "alex@example.com" }
-  },
-  {
-    method: "POST",
-    body: {
-      action: "user.created",
-      user: { id: 1001, name: "John Doe", email: "john@example.com", role: "member" }
-    }
-  },
-  {
-    method: "POST",
-    body: { action: "ping", timestamp: "2025-03-16T10:00:00Z" }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "payment_intent.succeeded",
-      id: "pi_123abc",
-      amount: 2500,
-      currency: "eur",
-      customer: "cus_xyz789",
-      payment_method: "pm_card_visa"
-    }
-  },
-  {
-    method: "DELETE",
-    body: {
-      action: "item.removed",
-      item_id: "item_890",
-      reason: "out_of_stock"
-    }
-  },
-  {
-    method: "POST",
-    body: { event: "payment.succeeded", amount: 9900, customer: "cus_stripe123", currency: "usd" }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "invoice.payment_failed",
-      invoice_id: "in_789ghi",
-      customer: "cus_xyz789",
-      attempt_count: 3,
-      next_payment_attempt: "2025-03-17T10:00:00Z"
-    }
-  },
-  {
-    method: "POST",
-    body: { event: "charge.failed", code: "insufficient_funds", amount: 4900 }
-  },
-  {
-    method: "POST",
-    body: { event: "invoice.paid", amount_due: 19900, status: "paid" }
-  },
-  {
-    method: "PUT",
-    body: {
-      action: "product.updated",
-      product_id: "prod_567",
-      changes: { price: 2999, stock: 50 }
-    }
-  },
-  {
-    method: "PATCH",
-    body: { id: 99, fields: { email: "new@example.com" } }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "customer.subscription.deleted",
-      subscription_id: "sub_456def",
-      customer: "cus_abc123",
-      plan: "premium",
-      cancel_at_period_end: true
-    }
-  },
-  {
-    method: "PUT",
-    body: { id: 42, status: "active" }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "order.created",
-      order_id: "ORD-12345",
-      customer: { id: "cus_001", email: "buyer@example.com" },
-      items: [
-        { sku: "SKU123", name: "Widget", quantity: 2, price: 1500 },
-        { sku: "SKU456", name: "Gadget", quantity: 1, price: 4900 }
-      ],
-      total: 7900,
-      shipping_address: {
-        line1: "123 Main St",
-        city: "Anytown",
-        country: "US"
-      }
-    }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "pull_request",
-      action: "opened",
-      pull_request: { number: 42, title: "Fix bug", state: "open" },
-      repository: { name: "my-repo", owner: "octocat" },
-      sender: { login: "contributor" }
-    }
-  },
+  { method: "POST", body: { event: "customer.created", id: "cus_456", email: "alex@example.com" } },
+  { method: "POST", body: { action: "user.created", user: { id: 1001, name: "John Doe", email: "john@example.com", role: "member" } } },
+  { method: "POST", body: { action: "ping", timestamp: "2025-03-16T10:00:00Z" } },
+  { method: "POST", body: { event: "payment_intent.succeeded", id: "pi_123abc", amount: 2500, currency: "eur", customer: "cus_xyz789", payment_method: "pm_card_visa" } },
+  { method: "DELETE", body: { action: "item.removed", item_id: "item_890", reason: "out_of_stock" } },
+  { method: "POST", body: { event: "payment.succeeded", amount: 9900, customer: "cus_stripe123", currency: "usd" } },
+  { method: "POST", body: { event: "invoice.payment_failed", invoice_id: "in_789ghi", customer: "cus_xyz789", attempt_count: 3, next_payment_attempt: "2025-03-17T10:00:00Z" } },
+  { method: "POST", body: { event: "charge.failed", code: "insufficient_funds", amount: 4900 } },
+  { method: "POST", body: { event: "invoice.paid", amount_due: 19900, status: "paid" } },
+  { method: "PUT", body: { action: "product.updated", product_id: "prod_567", changes: { price: 2999, stock: 50 } } },
+  { method: "PATCH", body: { id: 99, fields: { email: "new@example.com" } } },
+  { method: "POST", body: { event: "customer.subscription.deleted", subscription_id: "sub_456def", customer: "cus_abc123", plan: "premium", cancel_at_period_end: true } },
+  { method: "PUT", body: { id: 42, status: "active" } },
+  { method: "POST", body: { event: "order.created", order_id: "ORD-12345", customer: { id: "cus_001", email: "buyer@example.com" }, items: [{ sku: "SKU123", name: "Widget", quantity: 2, price: 1500 }], total: 7900 } },
+  { method: "POST", body: { event: "pull_request", action: "opened", pull_request: { number: 42, title: "Fix bug", state: "open" }, repository: { name: "my-repo" }, sender: { login: "contributor" } } },
   { method: "GET", body: null },
-  {
-    method: "DELETE",
-    body: null
-  },
-  {
-    method: "PUT",
-    body: { event: "subscription.updated", plan: "pro", interval: "monthly" }
-  },
-  {
-    method: "POST",
-    body: {
-      event: "message",
-      type: "message",
-      channel: "C123456",
-      user: "U789",
-      text: "Hello, world!",
-      ts: "1678901234.567"
-    }
-  }
+  { method: "DELETE", body: null },
+  { method: "PUT", body: { event: "subscription.updated", plan: "pro", interval: "monthly" } },
+  { method: "POST", body: { event: "message", type: "message", channel: "C123456", user: "U789", text: "Hello, world!", ts: "1678901234.567" } },
 ];
 
 const METHOD_COLOR: Record<string, string> = {
@@ -203,7 +62,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   const [curlCopied, setCurlCopied] = useState(false);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
   const [replayUrl, setReplayUrl] = useState("https://httpbin.org/post");
-  const [replayResult, setReplayResult] = useState<{status_code: string; duration_ms: string; response_body?: string; error: string | null} | null>(null);
+  const [replayResult, setReplayResult] = useState<{ status_code: string; duration_ms: string; response_body?: string; error: string | null } | null>(null);
   const [replaying, setReplaying] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const payloadIdx = useRef(0);
@@ -249,9 +108,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   }, [endpointId, status]);
 
   const selectRequest = async (r: LiveRequest) => {
-    const res = await fetch(`${API}/api/requests/${r.id}`, {
-      headers: { "x-session-id": DEMO_SESSION }
-    });
+    const res = await fetch(`${API}/api/requests/${r.id}`, { headers: { "x-session-id": DEMO_SESSION } });
     const detail = await res.json();
     setSelected({ ...r, body: detail.body, headers: detail.headers });
     setReplayResult(null);
@@ -285,20 +142,19 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         body { background: #0a0a0a; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
         .req-item { animation: fadeUp 0.25s ease forwards; }
-        .live-pulse { animation: pulse 2s infinite; }
         .landing-page { background: #0a0a0a; color: #ededed; min-height: 100vh; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .mobile-block { display: none; background: #0a0a0a; color: #ededed; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Inter', sans-serif; }
+        .desktop-only { display: block; }
+        @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
 
         .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; background: rgba(10,10,10,0.9); backdrop-filter: blur(12px); }
         .l-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: #ededed; }
         .l-nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid #222; border-radius: 6px; color: #888; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
         .l-nav-btn:hover { border-color: #444; color: #ededed; }
-
         .l-hero { max-width: 1100px; margin: 0 auto; padding: 80px 32px 60px; }
         .l-hero-inner { display: flex; align-items: flex-start; gap: 80px; }
         .l-hero-copy { flex: 0 0 360px; padding-top: 8px; }
-        .l-badge { display: inline-block; font-size: 11px; color: #444; border: 1px solid #1a1a1a; border-radius: 20px; padding: 3px 12px; margin-bottom: 20px; letter-spacing: 0.04em; }
         .l-h1 { font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; color: #ededed; margin-bottom: 16px; }
         .l-sub { font-size: 14px; color: #555; line-height: 1.7; margin-bottom: 28px; }
         .l-cta { height: 38px; padding: 0 20px; background: #ededed; color: #0a0a0a; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
@@ -306,29 +162,22 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         .l-features { display: flex; flex-direction: column; gap: 18px; }
         .l-feature-title { font-size: 12px; font-weight: 500; color: #888; margin-bottom: 2px; }
         .l-feature-desc { font-size: 11px; color: #333; line-height: 1.6; }
-
         .l-demo { flex: 1; min-width: 0; }
         .l-demo-window { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; }
-        .l-demo-bar { padding: 10px 14px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; gap: 10px; }
-        .l-demo-dots { display: flex; gap: 5px; }
-        .l-demo-dot { width: 9px; height: 9px; border-radius: 50%; background: #222; }
-        .l-demo-title { flex: 1; font-size: 10px; color: #333; font-family: monospace; text-align: center; }
-        .l-status { display: flex; align-items: center; gap: 5px; font-size: 10px; }
-
+        .l-demo-bar { padding: 10px 14px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between; }
         .l-demo-body { display: flex; height: 380px; }
         .l-feed { width: 220px; flex-shrink: 0; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; }
         .l-feed-header { padding: 10px 12px 8px; font-size: 9px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #111; }
-        .l-feed-list { flex: 1; overflow-y: auto; padding: 8px; max-height: 320px; }
+        .l-feed-list { flex: 1; overflow-y: auto; padding: 8px; }
         .l-req { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 2px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
         .l-req:hover { background: #111; }
         .l-req.active { background: #111; border-color: #222; }
         .l-method { font-size: 10px; font-weight: 600; font-family: monospace; min-width: 30px; }
         .l-time { font-size: 10px; color: #333; }
-
-        .l-detail { flex: 1; overflow-y: auto; padding: 14px; min-width: 0; height: 100%; }
+        .l-detail { flex: 1; overflow-y: auto; padding: 14px; min-width: 0; }
         .l-detail-empty { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #222; }
         .l-meta-row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
-        .l-meta-label { font-size: 9px; color: "#333"; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; color: #333; }
+        .l-meta-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; color: #333; }
         .l-meta-val { font-size: 11px; font-family: monospace; color: #ededed; }
         .l-section-label { font-size: 9px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
         .l-body-block { background: #111; border: 1px solid #1a1a1a; border-radius: 4px; padding: 10px; font-size: 10px; font-family: monospace; color: #888; white-space: pre-wrap; line-height: 1.6; max-height: 100px; overflow-y: auto; margin-bottom: 12px; }
@@ -339,14 +188,12 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         .l-replay-btn:hover { background: #d4d4d4; }
         .l-replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .l-replay-result { margin-top: 8px; font-size: 10px; font-family: monospace; }
-
         .l-curl-box { margin-top: 10px; background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 8px; padding: 12px 14px; }
         .l-curl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .l-curl-label { font-size: 11px; color: #444; }
         .l-curl-copy { height: 22px; padding: 0 8px; background: transparent; border: 1px solid #1a1a1a; border-radius: 4px; color: #444; font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
         .l-curl-copy:hover { border-color: #333; color: #888; }
         .l-curl-code { font-size: 11px; font-family: monospace; color: #555; white-space: pre-wrap; line-height: 1.6; }
-
         .l-usecases { max-width: 1100px; margin: 0 auto; padding: 60px 32px 80px; border-top: 1px solid #111; }
         .l-usecases-title { font-size: 11px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 32px; }
         .l-usecases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #111; border: 1px solid #111; border-radius: 8px; overflow: hidden; }
@@ -356,7 +203,17 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
         .l-usecase-desc { font-size: 12px; color: #333; line-height: 1.6; }
       `}</style>
 
-      <div className="landing-page">
+      {/* Mobile block */}
+      <div className="mobile-block">
+        <div style={{ fontSize: 28, marginBottom: 16 }}>↪</div>
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Webhook Inspector</div>
+        <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
+          This tool is designed for desktop. Open it on a larger screen to see the live demo and dashboard.
+        </div>
+      </div>
+
+      {/* Desktop */}
+      <div className="desktop-only landing-page">
         <nav className="l-nav">
           <span className="l-nav-logo">Webhook Inspector</span>
           <button className="l-nav-btn" onClick={onEnter}>Open dashboard →</button>
@@ -364,7 +221,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
 
         <div className="l-hero">
           <div className="l-hero-inner">
-            {/* Copy */}
             <div className="l-hero-copy">
               <h1 className="l-h1">Inspect, replay,<br />and debug<br />webhooks.</h1>
               <p className="l-sub">Point any webhook at your endpoint. See every request instantly, inspect the full payload, and replay it to your server whenever you need.</p>
@@ -383,7 +239,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
               </div>
             </div>
 
-            {/* Live demo */}
             <div className="l-demo">
               <div className="l-demo-window">
                 <div className="l-demo-bar">
@@ -466,7 +321,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
                                   <div style={{
                                     marginTop: 6, background: "#111", border: "1px solid #1a1a1a",
                                     borderRadius: 4, padding: "8px 10px", fontSize: 10, fontFamily: "monospace",
-                                    color: "#555", whiteSpace: "pre-wrap", maxHeight: 100, overflowY: "auto"
+                                    color: "#555", whiteSpace: "pre-wrap" as const, maxHeight: 80, overflowY: "auto" as const
                                   }}>
                                     {(() => { try { return JSON.stringify(JSON.parse(replayResult.response_body), null, 2); } catch { return replayResult.response_body; } })()}
                                   </div>
@@ -481,7 +336,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
                 </div>
               </div>
 
-              {/* Try it yourself */}
               {endpointId && (
                 <div className="l-curl-box">
                   <div className="l-curl-header">
@@ -497,7 +351,6 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
           </div>
         </div>
 
-        {/* Use cases */}
         <div className="l-usecases">
           <div className="l-usecases-title">Use cases</div>
           <div className="l-usecases-grid">
