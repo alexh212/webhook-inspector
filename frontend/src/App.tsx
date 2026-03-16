@@ -52,6 +52,7 @@ export default function App({ onBack }: { onBack: () => void }) {
   const [detail, setDetail] = useState<RequestDetail | null>(null);
   const [newName, setNewName] = useState("");
   const [copied, setCopied] = useState(false);
+  const [secretCopied, setSecretCopied] = useState(false);
   const [replayUrl, setReplayUrl] = useState("http://localhost:9000");
   const [replayBody, setReplayBody] = useState<string | null>(null);
   const [replayResult, setReplayResult] = useState<ReplayResult | null>(null);
@@ -59,6 +60,7 @@ export default function App({ onBack }: { onBack: () => void }) {
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [feedWidth, setFeedWidth] = useState(380);
+  const [secrets, setSecrets] = useState<Record<string, string>>({});
   const isResizingSidebar = useRef(false);
   const isResizingFeed = useRef(false);
 
@@ -143,6 +145,7 @@ export default function App({ onBack }: { onBack: () => void }) {
     setRequests([]);
     setDetail(null);
     setNewName("");
+    if (ep.secret) setSecrets(prev => ({ ...prev, [ep.id]: ep.secret }));
   };
 
   const hookUrl = selected ? `${API}/hooks/${selected.id}` : "";
@@ -151,6 +154,14 @@ export default function App({ onBack }: { onBack: () => void }) {
     navigator.clipboard.writeText(hookUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copySecret = () => {
+    if (selected && secrets[selected.id]) {
+      navigator.clipboard.writeText(secrets[selected.id]);
+      setSecretCopied(true);
+      setTimeout(() => setSecretCopied(false), 2000);
+    }
   };
 
   const replay = async () => {
@@ -240,12 +251,32 @@ export default function App({ onBack }: { onBack: () => void }) {
           ) : (
             <>
               <div className="main-header">
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="hook-label">Hook URL</div>
                   <div className="hook-url">{hookUrl}</div>
+                  {selected && secrets[selected.id] && (
+                    <div style={{ marginTop: 10 }}>
+                      <div className="hook-label">
+                        Signing Secret
+                        <span style={{ color: "#2a2a2a", marginLeft: 6 }}>(shown once)</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                        <div className="hook-url" style={{ color: "#c084fc", fontFamily: "monospace", fontSize: 11 }}>
+                          {secrets[selected.id]}
+                        </div>
+                        <button
+                          onClick={copySecret}
+                          style={{ height: 22, padding: "0 8px", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 4, color: "#555", fontSize: 10, fontFamily: "Inter, sans-serif", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                        >
+                          {secretCopied ? "✓" : "copy"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
               </div>
+
               <div className="content-area">
                 <div className="feed" style={{ width: feedWidth }}>
                   <div className="feed-meta">
