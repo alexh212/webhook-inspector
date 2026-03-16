@@ -45,7 +45,7 @@ function tryFormatJson(str: string) {
   catch { return str; }
 }
 
-export default function App() {
+export default function App({ onBack }: { onBack: () => void }) {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [selected, setSelected] = useState<Endpoint | null>(null);
   const [requests, setRequests] = useState<CapturedRequest[]>([]);
@@ -182,213 +182,220 @@ export default function App() {
 
   return (
     <div className="layout">
-      <div className="sidebar" style={{ width: sidebarWidth }}>
-        <div className="sidebar-header">
-          <div className="logo">Webhook Inspector</div>
-          <div className="input-row">
-            <input
-              className="ep-input"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && createEndpoint()}
-              placeholder="New endpoint..."
-            />
-            <button className="add-btn" onClick={createEndpoint}>+</button>
-          </div>
-        </div>
-        <div className="ep-list">
-          {endpoints.length === 0 && (
-            <div style={{ fontSize: 11, color: "#333", padding: "8px 10px" }}>No endpoints yet</div>
-          )}
-          {endpoints.map(ep => (
-            <div key={ep.id} className={`ep-item ${selected?.id === ep.id ? "active" : ""}`} onClick={() => setSelected(ep)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div className="ep-name">{ep.name}</div>
-                <span
-                  onClick={e => { e.stopPropagation(); deleteEndpoint(ep.id); }}
-                  style={{ color: "#444", fontSize: 14, cursor: "pointer", padding: "0 2px" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#444")}
-                >×</span>
-              </div>
-              <div className="ep-id">{ep.id.slice(0, 14)}...</div>
-            </div>
-          ))}
-        </div>
-        <div
-          className="resize-handle"
-          onMouseDown={() => {
-            isResizingSidebar.current = true;
-            document.body.style.cursor = "col-resize";
-            document.body.style.userSelect = "none";
-          }}
-        />
-      </div>
+      <nav className="dashboard-nav">
+        <span className="dashboard-nav-logo">Webhook Inspector</span>
+        <button className="dashboard-nav-back" onClick={onBack}>← Back to home</button>
+      </nav>
 
-      <div className="main">
-        {!selected ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">↪</div>
-            <div className="empty-state-text">Create or select an endpoint</div>
-          </div>
-        ) : (
-          <>
-            <div className="main-header">
-              <div>
-                <div className="hook-label">Hook URL</div>
-                <div className="hook-url">{hookUrl}</div>
-              </div>
-              <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
-            </div>
-            <div className="content-area">
-              <div className="feed" style={{ width: feedWidth }}>
-                <div className="feed-meta">
-                  {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: "#4ade80" }}>● live</span>
-                </div>
-                {requests.length === 0 ? (
-                  <div className="empty">No requests yet. Fire a curl at the URL above.</div>
-                ) : (
-                  requests.map(r => (
-                    <div
-                      key={r.id}
-                      className={`req-row ${detail?.id === r.id ? "active" : ""}`}
-                      onClick={() => loadDetail(r.id)}
-                    >
-                      <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
-                      <span className="req-type">{r.content_type || "no content-type"}</span>
-                      <span className="req-time">{timeAgo(r.received_at)}</span>
-                      <span
-                        onClick={e => { e.stopPropagation(); deleteRequest(r.id); }}
-                        style={{ color: "#333", fontSize: 14, cursor: "pointer", marginLeft: 4 }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "#333")}
-                      >×</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div
-                style={{ width: 4, cursor: "col-resize", flexShrink: 0, background: "transparent", borderRight: "1px solid #1a1a1a" }}
-                onMouseDown={() => {
-                  isResizingFeed.current = true;
-                  document.body.style.cursor = "col-resize";
-                  document.body.style.userSelect = "none";
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#333")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+      <div className="dashboard-body">
+        <div className="sidebar" style={{ width: sidebarWidth }}>
+          <div className="sidebar-header">
+            <div className="logo">Endpoints</div>
+            <div className="input-row">
+              <input
+                className="ep-input"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && createEndpoint()}
+                placeholder="New endpoint..."
               />
+              <button className="add-btn" onClick={createEndpoint}>+</button>
+            </div>
+          </div>
+          <div className="ep-list">
+            {endpoints.length === 0 && (
+              <div style={{ fontSize: 11, color: "#222", padding: "8px 10px" }}>No endpoints yet</div>
+            )}
+            {endpoints.map(ep => (
+              <div key={ep.id} className={`ep-item ${selected?.id === ep.id ? "active" : ""}`} onClick={() => setSelected(ep)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="ep-name">{ep.name}</div>
+                  <span
+                    onClick={e => { e.stopPropagation(); deleteEndpoint(ep.id); }}
+                    style={{ color: "#333", fontSize: 14, cursor: "pointer", padding: "0 2px" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#333")}
+                  >×</span>
+                </div>
+                <div className="ep-id">{ep.id.slice(0, 14)}...</div>
+              </div>
+            ))}
+          </div>
+          <div
+            className="resize-handle"
+            onMouseDown={() => {
+              isResizingSidebar.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+        </div>
 
-              <div className="detail">
-                {!detail ? (
-                  <div className="detail-empty">← Select a request to inspect</div>
-                ) : (
-                  <>
-                    <div className="detail-meta-row">
-                      <div>
-                        <div className="detail-label">Method</div>
-                        <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
+        <div className="main">
+          {!selected ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">↪</div>
+              <div className="empty-state-text">Create or select an endpoint</div>
+            </div>
+          ) : (
+            <>
+              <div className="main-header">
+                <div>
+                  <div className="hook-label">Hook URL</div>
+                  <div className="hook-url">{hookUrl}</div>
+                </div>
+                <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
+              </div>
+              <div className="content-area">
+                <div className="feed" style={{ width: feedWidth }}>
+                  <div className="feed-meta">
+                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: "#4ade80" }}>● live</span>
+                  </div>
+                  {requests.length === 0 ? (
+                    <div className="empty">No requests yet. Fire a curl at the URL above.</div>
+                  ) : (
+                    requests.map(r => (
+                      <div
+                        key={r.id}
+                        className={`req-row ${detail?.id === r.id ? "active" : ""}`}
+                        onClick={() => loadDetail(r.id)}
+                      >
+                        <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
+                        <span className="req-type">{r.content_type || "no content-type"}</span>
+                        <span className="req-time">{timeAgo(r.received_at)}</span>
+                        <span
+                          onClick={e => { e.stopPropagation(); deleteRequest(r.id); }}
+                          style={{ color: "#222", fontSize: 14, cursor: "pointer", marginLeft: 4 }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "#222")}
+                        >×</span>
                       </div>
-                      <div>
-                        <div className="detail-label">Source IP</div>
-                        <div className="detail-meta-val">{detail.source_ip}</div>
-                      </div>
-                      <div>
-                        <div className="detail-label">Received</div>
-                        <div className="detail-meta-val">{timeAgo(detail.received_at)}</div>
-                      </div>
-                      <div>
-                        <div className="detail-label">Content-Type</div>
-                        <div className="detail-meta-val">{detail.content_type || "—"}</div>
-                      </div>
-                    </div>
+                    ))
+                  )}
+                </div>
 
-                    {detail.body && (
+                <div
+                  style={{ width: 4, cursor: "col-resize", flexShrink: 0, background: "transparent", borderRight: "1px solid #111" }}
+                  onMouseDown={() => {
+                    isResizingFeed.current = true;
+                    document.body.style.cursor = "col-resize";
+                    document.body.style.userSelect = "none";
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#333")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                />
+
+                <div className="detail">
+                  {!detail ? (
+                    <div className="detail-empty">← Select a request to inspect</div>
+                  ) : (
+                    <>
+                      <div className="detail-meta-row">
+                        <div>
+                          <div className="detail-label">Method</div>
+                          <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
+                        </div>
+                        <div>
+                          <div className="detail-label">Source IP</div>
+                          <div className="detail-meta-val">{detail.source_ip}</div>
+                        </div>
+                        <div>
+                          <div className="detail-label">Received</div>
+                          <div className="detail-meta-val">{timeAgo(detail.received_at)}</div>
+                        </div>
+                        <div>
+                          <div className="detail-label">Content-Type</div>
+                          <div className="detail-meta-val">{detail.content_type || "—"}</div>
+                        </div>
+                      </div>
+
+                      {detail.body && (
+                        <div className="detail-section">
+                          <div className="detail-label">Body</div>
+                          <div className="body-block">{tryFormatJson(detail.body)}</div>
+                        </div>
+                      )}
+
+                      {Object.keys(detail.query_params || {}).length > 0 && (
+                        <div className="detail-section">
+                          <div className="detail-label">Query Params</div>
+                          <table className="kv-table">
+                            {Object.entries(detail.query_params).map(([k, v]) => (
+                              <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
+                            ))}
+                          </table>
+                        </div>
+                      )}
+
                       <div className="detail-section">
-                        <div className="detail-label">Body</div>
-                        <div className="body-block">{tryFormatJson(detail.body)}</div>
-                      </div>
-                    )}
-
-                    {Object.keys(detail.query_params || {}).length > 0 && (
-                      <div className="detail-section">
-                        <div className="detail-label">Query Params</div>
+                        <div className="detail-label">Headers</div>
                         <table className="kv-table">
-                          {Object.entries(detail.query_params).map(([k, v]) => (
+                          {Object.entries(detail.headers).map(([k, v]) => (
                             <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
                           ))}
                         </table>
                       </div>
-                    )}
 
-                    <div className="detail-section">
-                      <div className="detail-label">Headers</div>
-                      <table className="kv-table">
-                        {Object.entries(detail.headers).map(([k, v]) => (
-                          <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
-                        ))}
-                      </table>
-                    </div>
-
-                    {attempts.length > 0 && (
-                      <div className="detail-section">
-                        <div className="detail-label">Delivery Attempts</div>
-                        <div className="attempts-list">
-                          {attempts.map(a => (
-                            <div key={a.id} className="attempt-row">
-                              <div className="attempt-dot" style={{
-                                background: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c"
-                              }} />
-                              <span style={{ color: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c" }}>
-                                {a.error ? "Error" : a.status_code}
-                              </span>
-                              <span style={{ color: "#555", flex: 1 }}>{a.destination_url}</span>
-                              <span style={{ color: "#444" }}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
-                              <span style={{ color: "#444" }}>{timeAgo(a.attempted_at)}</span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="replay-section">
+                        <div className="detail-label" style={{ marginBottom: 12 }}>Replay</div>
+                        <input
+                          className="replay-input"
+                          value={replayUrl}
+                          onChange={e => setReplayUrl(e.target.value)}
+                          placeholder="Destination URL"
+                        />
+                        <textarea
+                          className="replay-textarea"
+                          value={replayBody || ""}
+                          onChange={e => setReplayBody(e.target.value)}
+                          placeholder="Request body (edit before replaying)"
+                        />
+                        <button className="replay-btn" onClick={replay} disabled={replaying}>
+                          {replaying ? "Sending..." : "↩ Replay"}
+                        </button>
+                        {replayResult && (
+                          <div className={`replay-result ${replayResult.error ? "error" : "success"}`}>
+                            {replayResult.error ? (
+                              <span style={{ color: "#f87171" }}>Error: {replayResult.error}</span>
+                            ) : (
+                              <>
+                                <span style={{ color: "#4ade80" }}>{replayResult.status_code}</span>
+                                <span style={{ color: "#444", margin: "0 8px" }}>·</span>
+                                <span style={{ color: "#444" }}>{replayResult.duration_ms}ms</span>
+                                <div style={{ marginTop: 8, color: "#555" }}>{replayResult.response_body?.slice(0, 200)}</div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
 
-                    <div className="replay-section">
-                      <div className="detail-label" style={{ marginBottom: 12 }}>Replay</div>
-                      <input
-                        className="replay-input"
-                        value={replayUrl}
-                        onChange={e => setReplayUrl(e.target.value)}
-                        placeholder="Destination URL"
-                      />
-                      <textarea
-                        className="replay-textarea"
-                        value={replayBody || ""}
-                        onChange={e => setReplayBody(e.target.value)}
-                        placeholder="Request body (edit before replaying)"
-                      />
-                      <button className="replay-btn" onClick={replay} disabled={replaying}>
-                        {replaying ? "Sending..." : "↩ Replay"}
-                      </button>
-                      {replayResult && (
-                        <div className={`replay-result ${replayResult.error ? "error" : "success"}`}>
-                          {replayResult.error ? (
-                            <span style={{ color: "#f87171" }}>Error: {replayResult.error}</span>
-                          ) : (
-                            <>
-                              <span style={{ color: "#4ade80" }}>{replayResult.status_code}</span>
-                              <span style={{ color: "#555", margin: "0 8px" }}>·</span>
-                              <span style={{ color: "#555" }}>{replayResult.duration_ms}ms</span>
-                              <div style={{ marginTop: 8, color: "#888" }}>{replayResult.response_body?.slice(0, 200)}</div>
-                            </>
-                          )}
+                      {attempts.length > 0 && (
+                        <div className="detail-section">
+                          <div className="detail-label">Delivery Attempts</div>
+                          <div className="attempts-list">
+                            {attempts.map(a => (
+                              <div key={a.id} className="attempt-row">
+                                <div className="attempt-dot" style={{
+                                  background: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c"
+                                }} />
+                                <span style={{ color: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c" }}>
+                                  {a.error ? "Error" : a.status_code}
+                                </span>
+                                <span style={{ color: "#444", flex: 1 }}>{a.destination_url}</span>
+                                <span style={{ color: "#333" }}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
+                                <span style={{ color: "#333" }}>{timeAgo(a.attempted_at)}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
