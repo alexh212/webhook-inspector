@@ -1,11 +1,11 @@
-import uuid, json, time, os
+import uuid, json, time, os, hmac, hashlib, secrets
 import redis.asyncio as aioredis
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from database import get_db
+from database import get_db, get_session_factory
 from models import Endpoint, CapturedRequest, DeliveryAttempt
 from pydantic import BaseModel
 from typing import Optional
@@ -65,11 +65,12 @@ async def create_endpoint(
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
 ):
-    ep = Endpoint(name=body.name, session_id=session_id)
+    secret = secrets.token_hex(32)
+    ep = Endpoint(name=body.name, session_id=session_id, secret=secret)
     db.add(ep)
     await db.commit()
     await db.refresh(ep)
-    return {"id": str(ep.id), "url": f"/hooks/{ep.id}"}
+    return {"id": str(ep.id), "url": f"/hooks/{ep.id}", "secret": secret}
 
 
 @app.get("/api/endpoints")
@@ -83,7 +84,7 @@ async def list_endpoints(
         .order_by(Endpoint.created_at.desc())
     )
     endpoints = result.scalars().all()
-    return [{"id": str(e.id), "name": e.name, "created_at": e.created_at} for e in endpoints]
+    return [{"id": str(e.id), "name": e.name, "created_at": e.created_at, "secret": e.secret} for e in endpoints]
 
 
 @app.api_route("/hooks/{endpoint_id}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
@@ -94,6 +95,13 @@ async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession =
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     body = await request.body()
+
+    if ep.secret:
+        signature = request.headers.get("x-webhook-signature", "")
+        expected = hmac.new(ep.secret.encode(), body, hashlib.sha256).hexdigest()
+        if signature and not hmac.compare_digest(signature, expected):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
     captured = CapturedRequest(
         endpoint_id=ep.id,
         method=request.method,
@@ -171,7 +179,7 @@ async def get_request(
 async def websocket_feed(websocket: WebSocket, endpoint_id: str, session_id: Optional[str] = None):
     await websocket.accept()
 
-    async with AsyncSessionLocal() as db:
+    async with get_session_factory()() as db:
         result = await db.execute(select(Endpoint).where(Endpoint.id == uuid.UUID(endpoint_id)))
         ep = result.scalar_one_or_none()
         if not ep:

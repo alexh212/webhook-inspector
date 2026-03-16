@@ -11,6 +11,7 @@ class Endpoint(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=True)
     session_id = Column(String(64), nullable=True, index=True)
+    secret = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class CapturedRequest(Base):
