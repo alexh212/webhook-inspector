@@ -59,4 +59,4 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost/webhookinspector_test
           REDIS_URL: redis://localhost:6379
-        run: pytest tests/ -v
+        run: python -m pytest tests/ -v
