@@ -321,7 +321,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
                                   <div style={{
                                     marginTop: 6, background: "#111", border: "1px solid #1a1a1a",
                                     borderRadius: 4, padding: "8px 10px", fontSize: 10, fontFamily: "monospace",
-                                    color: "#555", whiteSpace: "pre-wrap" as const, maxHeight: 80, overflowY: "auto" as const
+                                    color: "#555", whiteSpace: "pre-wrap" as const, maxHeight: 100, overflowY: "auto" as const
                                   }}>
                                     {(() => { try { return JSON.stringify(JSON.parse(replayResult.response_body), null, 2); } catch { return replayResult.response_body; } })()}
                                   </div>
