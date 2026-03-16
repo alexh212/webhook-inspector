@@ -13,6 +13,7 @@ Point any webhook at your endpoint. Every request is captured instantly and appe
 - **Replay engine** — reconstructs and fires stored requests to any destination via httpx
 - **Retry worker** — separate background process, Redis sorted set as a time-delayed queue, exponential backoff (5s → 25s → 125s → 625s), max 5 attempts
 - **Session isolation** — session ID generated in the browser, stored in localStorage, sent as a header on every request — no login required, data is fully scoped per user
+- **HMAC signature verification** — each endpoint gets a signing secret; senders sign payloads with HMAC-SHA256 and pass the result in `x-webhook-signature` — the same pattern used by Stripe and GitHub
 
 ## Tech Stack
 
@@ -20,6 +21,7 @@ Point any webhook at your endpoint. Every request is captured instantly and appe
 - PostgreSQL + SQLAlchemy + Alembic
 - Redis (pub/sub for real-time, sorted sets for retry queue)
 - React, TypeScript, Vite
+- pytest + GitHub Actions CI
 - Deployed on Render
 
 ## Live Demo
@@ -27,7 +29,6 @@ Point any webhook at your endpoint. Every request is captured instantly and appe
 https://webhook-inspector-sx1y.onrender.com
 
 ## Running Locally
-
 ```bash
 git clone https://github.com/alexh212/webhook-inspector
 cd webhook-inspector
@@ -49,8 +50,13 @@ npm install
 npm run dev
 ```
 
-## Environment Variables
+## Tests
+```bash
+cd backend
+venv/bin/pytest tests/ -v
+```
 
+## Environment Variables
 ```
 DATABASE_URL=postgresql+asyncpg://localhost/webhookinspector
 REDIS_URL=redis://localhost:6379
@@ -58,9 +64,8 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
 ```
 
 ## API
-
 ```
-POST   /api/endpoints                    Create a new endpoint
+POST   /api/endpoints                    Create endpoint (returns signing secret)
 GET    /api/endpoints                    List your endpoints
 ANY    /hooks/{id}                       Capture a webhook (public, no auth)
 GET    /api/endpoints/{id}/requests      List captured requests
