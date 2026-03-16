@@ -260,8 +260,11 @@ export default function App({ onBack }: { onBack: () => void }) {
                         Signing Secret
                         <span style={{ color: "#2a2a2a", marginLeft: 6 }}>(shown once)</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                        <div className="hook-url" style={{ color: "#c084fc", fontFamily: "monospace", fontSize: 11 }}>
+                      <div style={{ fontSize: 10, color: "#333", marginBottom: 6, lineHeight: 1.5 }}>
+                        Sign requests with this secret using HMAC-SHA256 and send the result in the <span style={{ color: "#555", fontFamily: "monospace" }}>x-webhook-signature</span> header. Unsigned requests are still accepted.
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div className="hook-url" style={{ color: "#c084fc" }}>
                           {secrets[selected.id]}
                         </div>
                         <button
