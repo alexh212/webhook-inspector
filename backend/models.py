@@ -2,9 +2,12 @@ import uuid
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base
-from datetime import datetime
+from datetime import datetime, timezone
 
 Base = declarative_base()
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class Endpoint(Base):
     __tablename__ = "endpoints"
@@ -12,7 +15,7 @@ class Endpoint(Base):
     name = Column(String(255), nullable=True)
     session_id = Column(String(64), nullable=True, index=True)
     secret = Column(String(64), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
 class CapturedRequest(Base):
     __tablename__ = "captured_requests"
@@ -24,7 +27,7 @@ class CapturedRequest(Base):
     query_params = Column(JSONB)
     source_ip = Column(String(45))
     content_type = Column(String(255))
-    received_at = Column(DateTime, default=datetime.utcnow)
+    received_at = Column(DateTime, default=_utcnow)
 
 class DeliveryAttempt(Base):
     __tablename__ = "delivery_attempts"
@@ -36,6 +39,6 @@ class DeliveryAttempt(Base):
     response_body = Column(Text, nullable=True)
     duration_ms = Column(String(20), nullable=True)
     error = Column(Text, nullable=True)
-    attempted_at = Column(DateTime, default=datetime.utcnow)
+    attempted_at = Column(DateTime, default=_utcnow)
 
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { timeAgo, METHOD_COLOR, formatJson, hmacSign, type Theme } from "./utils";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const DEMO_SESSION = "demo-session-webhookinspector-public";
@@ -39,23 +40,7 @@ const DEMO_PAYLOADS = [
   { method: "POST", body: { event: "message", type: "message", channel: "C123456", user: "U789", text: "Hello, world!", ts: "1678901234.567" } },
 ];
 
-const METHOD_COLOR: Record<string, string> = {
-  GET: "#4ade80", POST: "#60a5fa", PUT: "#fb923c", DELETE: "#f87171", PATCH: "#c084fc"
-};
-
-function timeAgo(date: string) {
-  const seconds = Math.floor((Date.now() - new Date(date + "Z").getTime()) / 1000);
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  return `${Math.floor(seconds / 60)}m ago`;
-}
-
-function formatJson(str: string) {
-  try { return JSON.stringify(JSON.parse(str), null, 2); }
-  catch { return str; }
-}
-
-export default function Landing({ onEnter }: { onEnter: () => void }) {
+export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () => void; theme: Theme; toggleTheme: () => void }) {
   const [requests, setRequests] = useState<LiveRequest[]>([]);
   const [endpointId, setEndpointId] = useState<string | null>(null);
   const [selected, setSelected] = useState<LiveRequest | null>(null);
@@ -65,6 +50,8 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   const [replayResult, setReplayResult] = useState<{ status_code: string; duration_ms: string; response_body?: string; error: string | null } | null>(null);
   const [replaying, setReplaying] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const secretRef = useRef<string>("");
+  const endpointIdRef = useRef<string | null>(null);
   const payloadIdx = useRef(0);
 
   useEffect(() => {
@@ -75,20 +62,33 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
           headers: { "Content-Type": "application/json", "x-session-id": DEMO_SESSION },
           body: JSON.stringify({ name: "live-demo" }),
         });
+        if (!res.ok) { setStatus("error"); return; }
         const ep = await res.json();
         setEndpointId(ep.id);
+        endpointIdRef.current = ep.id;
+        if (ep.secret) secretRef.current = ep.secret;
         const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${ep.id}?session_id=${DEMO_SESSION}`);
         wsRef.current = ws;
         ws.onopen = () => setStatus("live");
         ws.onmessage = (event) => {
-          const req = JSON.parse(event.data);
-          setRequests(prev => [req, ...prev]);
+          try {
+            const req = JSON.parse(event.data);
+            setRequests(prev => [req, ...prev]);
+          } catch { /* ignore */ }
         };
         ws.onerror = () => setStatus("error");
       } catch { setStatus("error"); }
     };
     init();
-    return () => wsRef.current?.close();
+    return () => {
+      wsRef.current?.close();
+      if (endpointIdRef.current) {
+        fetch(`${API}/api/endpoints/${endpointIdRef.current}`, {
+          method: "DELETE",
+          headers: { "x-session-id": DEMO_SESSION },
+        }).catch(() => {});
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -96,11 +96,19 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
     const fire = async () => {
       const payload = DEMO_PAYLOADS[payloadIdx.current % DEMO_PAYLOADS.length];
       payloadIdx.current++;
-      await fetch(`${API}/hooks/${endpointId}`, {
-        method: payload.method,
-        headers: payload.body ? { "Content-Type": "application/json" } : {},
-        body: payload.body ? JSON.stringify(payload.body) : undefined,
-      });
+      const bodyStr = payload.body ? JSON.stringify(payload.body) : "";
+      const headers: Record<string, string> = {};
+      if (payload.body) headers["Content-Type"] = "application/json";
+      if (secretRef.current) {
+        headers["x-webhook-signature"] = await hmacSign(secretRef.current, bodyStr);
+      }
+      try {
+        await fetch(`${API}/hooks/${endpointId}`, {
+          method: payload.method,
+          headers,
+          body: payload.body ? bodyStr : undefined,
+        });
+      } catch { /* ignore on demo */ }
     };
     fire();
     const interval = setInterval(fire, 3500);
@@ -108,10 +116,13 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   }, [endpointId, status]);
 
   const selectRequest = async (r: LiveRequest) => {
-    const res = await fetch(`${API}/api/requests/${r.id}`, { headers: { "x-session-id": DEMO_SESSION } });
-    const detail = await res.json();
-    setSelected({ ...r, body: detail.body, headers: detail.headers });
-    setReplayResult(null);
+    try {
+      const res = await fetch(`${API}/api/requests/${r.id}`, { headers: { "x-session-id": DEMO_SESSION } });
+      if (!res.ok) return;
+      const detail = await res.json();
+      setSelected({ ...r, body: detail.body, headers: detail.headers });
+      setReplayResult(null);
+    } catch { /* ignore */ }
   };
 
   const replay = async () => {
@@ -131,92 +142,93 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
   };
 
   const curlCommand = endpointId
-    ? `curl -X POST ${API}/hooks/${endpointId} \\\n  -H "Content-Type: application/json" \\\n  -d '{"event": "test", "from": "you"}'`
+    ? `curl -X POST ${API}/hooks/${endpointId} \\\n  -H "Content-Type: application/json" \\\n  -H "x-webhook-signature: <hmac-sha256-hex>" \\\n  -d '{"event": "test", "from": "you"}'`
     : "";
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0a0a0a; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
         .req-item { animation: fadeUp 0.25s ease forwards; }
-        .landing-page { background: #0a0a0a; color: #ededed; min-height: 100vh; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-        .mobile-block { display: none; background: #0a0a0a; color: #ededed; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Inter', sans-serif; }
+        .landing-page { background: var(--bg); color: var(--text); min-height: 100vh; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .mobile-block { display: none; background: var(--bg); color: var(--text); height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Inter', sans-serif; }
         .desktop-only { display: block; }
         @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
 
-        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; background: rgba(10,10,10,0.9); backdrop-filter: blur(12px); }
-        .l-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: #ededed; }
-        .l-nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid #222; border-radius: 6px; color: #888; font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
-        .l-nav-btn:hover { border-color: #444; color: #ededed; }
+        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
+        .l-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
+        .l-nav-right { display: flex; align-items: center; gap: 8px; }
+        .l-nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
+        .l-nav-btn:hover { border-color: var(--border-dim); color: var(--text); }
         .l-hero { max-width: 1100px; margin: 0 auto; padding: 80px 32px 60px; }
         .l-hero-inner { display: flex; align-items: flex-start; gap: 80px; }
         .l-hero-copy { flex: 0 0 360px; padding-top: 8px; }
-        .l-h1 { font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; color: #ededed; margin-bottom: 16px; }
-        .l-sub { font-size: 14px; color: #555; line-height: 1.7; margin-bottom: 28px; }
-        .l-cta { height: 38px; padding: 0 20px; background: #ededed; color: #0a0a0a; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
-        .l-cta:hover { background: #d4d4d4; }
+        .l-h1 { font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; color: var(--text); margin-bottom: 16px; }
+        .l-sub { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 28px; }
+        .l-cta { height: 38px; padding: 0 20px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
+        .l-cta:hover { background: var(--cta-hover); }
         .l-features { display: flex; flex-direction: column; gap: 18px; }
-        .l-feature-title { font-size: 12px; font-weight: 500; color: #888; margin-bottom: 2px; }
-        .l-feature-desc { font-size: 11px; color: #333; line-height: 1.6; }
+        .l-feature-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 2px; }
+        .l-feature-desc { font-size: 11px; color: var(--text-faint); line-height: 1.6; }
         .l-demo { flex: 1; min-width: 0; }
-        .l-demo-window { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; }
-        .l-demo-bar { padding: 10px 14px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between; }
+        .l-demo-window { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .l-demo-bar { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
         .l-demo-body { display: flex; height: 380px; }
-        .l-feed { width: 220px; flex-shrink: 0; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; }
-        .l-feed-header { padding: 10px 12px 8px; font-size: 9px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #111; }
+        .l-feed { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .l-feed-header { padding: 10px 12px 8px; font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--bg-raised); }
         .l-feed-list { flex: 1; overflow-y: auto; padding: 8px; }
         .l-req { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 2px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
-        .l-req:hover { background: #111; }
-        .l-req.active { background: #111; border-color: #222; }
+        .l-req:hover { background: var(--bg-raised); }
+        .l-req.active { background: var(--bg-raised); border-color: var(--border-hover); }
         .l-method { font-size: 10px; font-weight: 600; font-family: monospace; min-width: 30px; }
-        .l-time { font-size: 10px; color: #333; }
+        .l-time { font-size: 10px; color: var(--text-faint); }
         .l-detail { flex: 1; overflow-y: auto; padding: 14px; min-width: 0; }
-        .l-detail-empty { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #222; }
+        .l-detail-empty { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-ghost); }
         .l-meta-row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
-        .l-meta-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; color: #333; }
-        .l-meta-val { font-size: 11px; font-family: monospace; color: #ededed; }
-        .l-section-label { font-size: 9px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-        .l-body-block { background: #111; border: 1px solid #1a1a1a; border-radius: 4px; padding: 10px; font-size: 10px; font-family: monospace; color: #888; white-space: pre-wrap; line-height: 1.6; max-height: 100px; overflow-y: auto; margin-bottom: 12px; }
+        .l-meta-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; color: var(--text-faint); }
+        .l-meta-val { font-size: 11px; font-family: monospace; color: var(--text); }
+        .l-section-label { font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+        .l-body-block { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-size: 10px; font-family: monospace; color: var(--code-text); white-space: pre-wrap; line-height: 1.6; max-height: 100px; overflow-y: auto; margin-bottom: 12px; }
         .l-replay-row { display: flex; gap: 6px; align-items: center; }
-        .l-replay-input { flex: 1; height: 26px; background: #111; border: 1px solid #1a1a1a; border-radius: 4px; padding: 0 8px; font-size: 10px; font-family: monospace; color: #888; outline: none; min-width: 0; }
-        .l-replay-input:focus { border-color: #333; }
-        .l-replay-btn { height: 26px; padding: 0 10px; background: #ededed; color: #0a0a0a; border: none; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
-        .l-replay-btn:hover { background: #d4d4d4; }
+        .l-replay-input { flex: 1; height: 26px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font-size: 10px; font-family: monospace; color: var(--code-text); outline: none; min-width: 0; }
+        .l-replay-input:focus { border-color: var(--border-strong); }
+        .l-replay-btn { height: 26px; padding: 0 10px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
+        .l-replay-btn:hover { background: var(--cta-hover); }
         .l-replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .l-replay-result { margin-top: 8px; font-size: 10px; font-family: monospace; }
-        .l-curl-box { margin-top: 10px; background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 8px; padding: 12px 14px; }
+        .l-curl-box { margin-top: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
         .l-curl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-        .l-curl-label { font-size: 11px; color: #444; }
-        .l-curl-copy { height: 22px; padding: 0 8px; background: transparent; border: 1px solid #1a1a1a; border-radius: 4px; color: #444; font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
-        .l-curl-copy:hover { border-color: #333; color: #888; }
-        .l-curl-code { font-size: 11px; font-family: monospace; color: #555; white-space: pre-wrap; line-height: 1.6; }
-        .l-usecases { max-width: 1100px; margin: 0 auto; padding: 60px 32px 80px; border-top: 1px solid #111; }
-        .l-usecases-title { font-size: 11px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 32px; }
-        .l-usecases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #111; border: 1px solid #111; border-radius: 8px; overflow: hidden; }
-        .l-usecase { background: #0a0a0a; padding: 24px; }
+        .l-curl-label { font-size: 11px; color: var(--text-dim); }
+        .l-curl-copy { height: 22px; padding: 0 8px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
+        .l-curl-copy:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+        .l-curl-code { font-size: 11px; font-family: monospace; color: var(--text-muted); white-space: pre-wrap; line-height: 1.6; }
+        .l-usecases { max-width: 1100px; margin: 0 auto; padding: 60px 32px 80px; border-top: 1px solid var(--bg-raised); }
+        .l-usecases-title { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 32px; }
+        .l-usecases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--bg-raised); border: 1px solid var(--bg-raised); border-radius: 8px; overflow: hidden; }
+        .l-usecase { background: var(--bg); padding: 24px; }
         .l-usecase-icon { font-size: 18px; margin-bottom: 10px; }
-        .l-usecase-title { font-size: 13px; font-weight: 500; color: #888; margin-bottom: 6px; }
-        .l-usecase-desc { font-size: 12px; color: #333; line-height: 1.6; }
+        .l-usecase-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+        .l-usecase-desc { font-size: 12px; color: var(--text-faint); line-height: 1.6; }
       `}</style>
 
-      {/* Mobile block */}
       <div className="mobile-block">
         <div style={{ fontSize: 28, marginBottom: 16 }}>↪</div>
         <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Webhook Inspector</div>
-        <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
           This tool is designed for desktop. Open it on a larger screen to see the live demo and dashboard.
         </div>
       </div>
 
-      {/* Desktop */}
       <div className="desktop-only landing-page">
         <nav className="l-nav">
           <span className="l-nav-logo">Webhook Inspector</span>
-          <button className="l-nav-btn" onClick={onEnter}>Open dashboard →</button>
+          <div className="l-nav-right">
+            <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+              {theme === "dark" ? "☀" : "☾"}
+            </button>
+            <button className="l-nav-btn" onClick={onEnter}>Open dashboard →</button>
+          </div>
         </nav>
 
         <div className="l-hero">
@@ -242,8 +254,8 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
             <div className="l-demo">
               <div className="l-demo-window">
                 <div className="l-demo-bar">
-                  <span style={{ fontSize: 11, color: "#444" }}>
-                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: status === "live" ? "#4ade80" : "#555" }}>● live</span>
+                  <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
+                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: status === "live" ? "var(--success)" : "var(--text-muted)" }}>● live</span>
                   </span>
                 </div>
 
@@ -252,7 +264,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
                     <div className="l-feed-header">Incoming requests</div>
                     <div className="l-feed-list">
                       {requests.length === 0 && (
-                        <div style={{ fontSize: 10, color: "#222", textAlign: "center", marginTop: 32 }}>
+                        <div style={{ fontSize: 10, color: "var(--text-ghost)", textAlign: "center", marginTop: 32 }}>
                           {status === "connecting" ? "Connecting..." : "Starting..."}
                         </div>
                       )}
@@ -262,7 +274,7 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
                           className={`l-req req-item ${selected?.id === r.id ? "active" : ""}`}
                           onClick={() => selectRequest(r)}
                         >
-                          <span className="l-method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
+                          <span className="l-method" style={{ color: METHOD_COLOR[r.method] || "var(--text-secondary)" }}>{r.method}</span>
                           <span className="l-time">{timeAgo(r.received_at)}</span>
                         </div>
                       ))}
@@ -311,17 +323,17 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
                         {replayResult && (
                           <div className="l-replay-result">
                             {replayResult.error ? (
-                              <span style={{ color: "#f87171" }}>Error: {replayResult.error}</span>
+                              <span style={{ color: "var(--error)" }}>Error: {replayResult.error}</span>
                             ) : (
                               <>
-                                <span style={{ color: parseInt(replayResult.status_code) < 400 ? "#4ade80" : "#f87171" }}>
+                                <span style={{ color: parseInt(replayResult.status_code) < 400 ? "var(--success)" : "var(--error)" }}>
                                   {replayResult.status_code} · {replayResult.duration_ms}ms
                                 </span>
                                 {replayResult.response_body && (
                                   <div style={{
-                                    marginTop: 6, background: "#111", border: "1px solid #1a1a1a",
+                                    marginTop: 6, background: "var(--bg-raised)", border: "1px solid var(--border)",
                                     borderRadius: 4, padding: "8px 10px", fontSize: 10, fontFamily: "monospace",
-                                    color: "#555", whiteSpace: "pre-wrap" as const, maxHeight: 100, overflowY: "auto" as const
+                                    color: "var(--text-muted)", whiteSpace: "pre-wrap" as const, maxHeight: 100, overflowY: "auto" as const
                                   }}>
                                     {(() => { try { return JSON.stringify(JSON.parse(replayResult.response_body), null, 2); } catch { return replayResult.response_body; } })()}
                                   </div>

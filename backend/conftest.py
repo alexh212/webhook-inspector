@@ -27,7 +27,9 @@ async def client():
     TestSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     from database import get_db
-    from main import app
+    from main import app, limiter
+
+    limiter.enabled = False
 
     async def override_get_db():
         async with TestSessionLocal() as session:
@@ -37,7 +39,9 @@ async def client():
 
     with patch("main.redis_client") as mock_redis:
         mock_redis.publish = AsyncMock(return_value=1)
+        mock_redis.zadd = AsyncMock(return_value=1)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
     app.dependency_overrides.clear()
+    limiter.enabled = True

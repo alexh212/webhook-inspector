@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { timeAgo, METHOD_COLOR, formatJson, isValidUrl, type Theme } from "./utils";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -13,11 +14,17 @@ function getSessionId(): string {
 
 const SESSION_ID = getSessionId();
 
-const apiFetch = (url: string, options: RequestInit = {}) =>
-  fetch(`${API}${url}`, {
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+  const res = await fetch(`${API}${url}`, {
     ...options,
-    headers: { ...options.headers as Record<string, string>, "x-session-id": SESSION_ID },
+    headers: { ...(options.headers as Record<string, string>), "x-session-id": SESSION_ID },
   });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Request failed (${res.status})`);
+  }
+  return res;
+};
 
 type Endpoint = { id: string; name: string; created_at: string };
 type CapturedRequest = { id: string; method: string; content_type: string; source_ip: string; received_at: string };
@@ -29,23 +36,7 @@ type RequestDetail = {
 type ReplayResult = { status_code: string; response_body: string; duration_ms: string; error: string | null };
 type DeliveryAttempt = { id: string; destination_url: string; status_code: string | null; duration_ms: string | null; error: string | null; attempted_at: string };
 
-function timeAgo(date: string) {
-  const seconds = Math.floor((Date.now() - new Date(date + "Z").getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3600)}h ago`;
-}
-
-const METHOD_COLOR: Record<string, string> = {
-  GET: "#4ade80", POST: "#60a5fa", PUT: "#fb923c", DELETE: "#f87171", PATCH: "#c084fc"
-};
-
-function tryFormatJson(str: string) {
-  try { return JSON.stringify(JSON.parse(str), null, 2); }
-  catch { return str; }
-}
-
-export default function App({ onBack }: { onBack: () => void }) {
+export default function App({ onBack, theme, toggleTheme }: { onBack: () => void; theme: Theme; toggleTheme: () => void }) {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [selected, setSelected] = useState<Endpoint | null>(null);
   const [requests, setRequests] = useState<CapturedRequest[]>([]);
@@ -61,8 +52,22 @@ export default function App({ onBack }: { onBack: () => void }) {
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [feedWidth, setFeedWidth] = useState(380);
   const [secrets, setSecrets] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [loadingEndpoints, setLoadingEndpoints] = useState(true);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [wsStatus, setWsStatus] = useState<"disconnected" | "connected" | "reconnecting">("disconnected");
+  const [confirmDelete, setConfirmDelete] = useState<{ type: "endpoint" | "request"; id: string } | null>(null);
   const isResizingSidebar = useRef(false);
   const isResizingFeed = useRef(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelay = useRef(1000);
+
+  const showError = useCallback((msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(null), 5000);
+  }, []);
 
   const onMouseMoveSidebar = useCallback((e: MouseEvent) => {
     if (!isResizingSidebar.current) return;
@@ -93,59 +98,135 @@ export default function App({ onBack }: { onBack: () => void }) {
   }, [onMouseMoveSidebar, onMouseMoveFeed, stopResize]);
 
   useEffect(() => {
-    apiFetch("/api/endpoints").then(r => r.json()).then(setEndpoints);
+    setLoadingEndpoints(true);
+    apiFetch("/api/endpoints")
+      .then(r => r.json())
+      .then(setEndpoints)
+      .catch(e => showError(`Failed to load endpoints: ${e.message}`))
+      .finally(() => setLoadingEndpoints(false));
+  }, [showError]);
+
+  const connectWebSocket = useCallback((endpointId: string) => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+
+    const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${endpointId}?session_id=${SESSION_ID}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setWsStatus("connected");
+      reconnectDelay.current = 1000;
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const newRequest = JSON.parse(event.data);
+        setRequests(prev => [newRequest, ...prev]);
+      } catch {
+        /* ignore malformed messages */
+      }
+    };
+
+    ws.onerror = () => {
+      setWsStatus("reconnecting");
+    };
+
+    ws.onclose = () => {
+      setWsStatus("reconnecting");
+      const delay = Math.min(reconnectDelay.current, 30000);
+      reconnectTimer.current = setTimeout(() => {
+        reconnectDelay.current = delay * 2;
+        connectWebSocket(endpointId);
+      }, delay);
+    };
   }, []);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected) {
+      setWsStatus("disconnected");
+      return;
+    }
     setDetail(null);
     setRequests([]);
     setAttempts([]);
-    apiFetch(`/api/endpoints/${selected.id}/requests`).then(r => r.json()).then(setRequests);
-    const ws = new WebSocket(`${API.replace("http", "ws")}/ws/endpoints/${selected.id}?session_id=${SESSION_ID}`);
-    ws.onmessage = (event) => {
-      const newRequest = JSON.parse(event.data);
-      setRequests(prev => [newRequest, ...prev]);
-    };
-    return () => ws.close();
-  }, [selected?.id]);
+    setLoadingRequests(true);
+    apiFetch(`/api/endpoints/${selected.id}/requests`)
+      .then(r => r.json())
+      .then(setRequests)
+      .catch(e => showError(`Failed to load requests: ${e.message}`))
+      .finally(() => setLoadingRequests(false));
 
-  const loadAttempts = async (id: string) => {
-    const res = await apiFetch(`/api/requests/${id}/attempts`);
-    const data = await res.json();
-    setAttempts(data);
-  };
+    connectWebSocket(selected.id);
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+    };
+  }, [selected?.id, connectWebSocket, showError]);
+
+  const loadAttempts = useCallback(async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/requests/${id}/attempts`);
+      const data = await res.json();
+      setAttempts(data);
+    } catch {
+      /* silently fail on attempt polling */
+    }
+  }, []);
 
   useEffect(() => {
     if (!detail) return;
     const interval = setInterval(() => loadAttempts(detail.id), 5000);
     return () => clearInterval(interval);
-  }, [detail?.id]);
+  }, [detail?.id, loadAttempts]);
 
   const loadDetail = async (id: string) => {
-    const res = await apiFetch(`/api/requests/${id}`);
-    const data = await res.json();
-    setDetail(data);
-    setReplayBody(data.body);
-    setReplayResult(null);
-    setAttempts([]);
-    loadAttempts(id);
+    setLoadingDetail(true);
+    try {
+      const res = await apiFetch(`/api/requests/${id}`);
+      const data = await res.json();
+      setDetail(data);
+      setReplayBody(data.body);
+      setReplayResult(null);
+      setAttempts([]);
+      loadAttempts(id);
+    } catch (e: unknown) {
+      showError(`Failed to load request detail: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const createEndpoint = async () => {
-    const res = await apiFetch("/api/endpoints", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName || "Untitled" }),
-    });
-    const ep = await res.json();
-    const newEp = { id: ep.id, name: newName || "Untitled", created_at: new Date().toISOString() };
-    setEndpoints(prev => [newEp, ...prev]);
-    setSelected(newEp);
-    setRequests([]);
-    setDetail(null);
-    setNewName("");
-    if (ep.secret) setSecrets(prev => ({ ...prev, [ep.id]: ep.secret }));
+    try {
+      const res = await apiFetch("/api/endpoints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName || "Untitled" }),
+      });
+      const ep = await res.json();
+      const newEp = { id: ep.id, name: newName || "Untitled", created_at: new Date().toISOString() };
+      setEndpoints(prev => [newEp, ...prev]);
+      setSelected(newEp);
+      setRequests([]);
+      setDetail(null);
+      setNewName("");
+      if (ep.secret) setSecrets(prev => ({ ...prev, [ep.id]: ep.secret }));
+    } catch (e: unknown) {
+      showError(`Failed to create endpoint: ${e instanceof Error ? e.message : e}`);
+    }
   };
 
   const hookUrl = selected ? `${API}/hooks/${selected.id}` : "";
@@ -166,37 +247,98 @@ export default function App({ onBack }: { onBack: () => void }) {
 
   const replay = async () => {
     if (!detail) return;
+    if (!isValidUrl(replayUrl)) {
+      showError("Invalid replay URL. Must be a valid http:// or https:// URL.");
+      return;
+    }
     setReplaying(true);
     setReplayResult(null);
-    const res = await apiFetch(`/api/requests/${detail.id}/replay`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ destination_url: replayUrl, body_override: replayBody }),
-    });
-    const data = await res.json();
-    setReplayResult(data);
-    loadAttempts(detail.id);
-    setReplaying(false);
+    try {
+      const res = await apiFetch(`/api/requests/${detail.id}/replay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination_url: replayUrl, body_override: replayBody }),
+      });
+      const data = await res.json();
+      setReplayResult(data);
+      loadAttempts(detail.id);
+    } catch (e: unknown) {
+      showError(`Replay failed: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setReplaying(false);
+    }
   };
 
-  const deleteEndpoint = async (id: string) => {
-    await apiFetch(`/api/endpoints/${id}`, { method: "DELETE" });
-    setEndpoints(prev => prev.filter(ep => ep.id !== id));
-    if (selected?.id === id) { setSelected(null); setRequests([]); setDetail(null); }
+  const executeDelete = async () => {
+    if (!confirmDelete) return;
+    const { type, id } = confirmDelete;
+    setConfirmDelete(null);
+    try {
+      if (type === "endpoint") {
+        await apiFetch(`/api/endpoints/${id}`, { method: "DELETE" });
+        setEndpoints(prev => prev.filter(ep => ep.id !== id));
+        if (selected?.id === id) { setSelected(null); setRequests([]); setDetail(null); }
+      } else {
+        await apiFetch(`/api/requests/${id}`, { method: "DELETE" });
+        setRequests(prev => prev.filter(r => r.id !== id));
+        if (detail?.id === id) setDetail(null);
+      }
+    } catch (e: unknown) {
+      showError(`Delete failed: ${e instanceof Error ? e.message : e}`);
+    }
   };
 
-  const deleteRequest = async (id: string) => {
-    await apiFetch(`/api/requests/${id}`, { method: "DELETE" });
-    setRequests(prev => prev.filter(r => r.id !== id));
-    if (detail?.id === id) setDetail(null);
-  };
+  const replayUrlValid = isValidUrl(replayUrl);
 
   return (
     <div className="layout">
       <nav className="dashboard-nav">
         <span className="dashboard-nav-logo">Webhook Inspector</span>
-        <button className="dashboard-nav-back" onClick={onBack}>← Back to home</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+            {theme === "dark" ? "☀" : "☾"}
+          </button>
+          <button className="dashboard-nav-back" onClick={onBack}>← Back to home</button>
+        </div>
       </nav>
+
+      {error && (
+        <div style={{
+          position: "fixed", top: 56, left: "50%", transform: "translateX(-50%)", zIndex: 1000,
+          background: "var(--error-bg)", border: "1px solid var(--error-border)", borderRadius: 8, padding: "10px 20px",
+          color: "var(--error)", fontSize: 12, fontFamily: "Inter, sans-serif", maxWidth: 500,
+        }}>
+          {error}
+          <span onClick={() => setError(null)} style={{ marginLeft: 12, cursor: "pointer", color: "var(--text-muted)" }}>×</span>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "var(--modal-overlay)", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "var(--modal-bg)", border: "1px solid var(--border-active)", borderRadius: 10, padding: "24px 28px",
+            maxWidth: 360, fontFamily: "Inter, sans-serif",
+          }}>
+            <div style={{ fontSize: 14, color: "var(--text)", marginBottom: 6 }}>Confirm delete</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.5 }}>
+              Are you sure you want to delete this {confirmDelete.type}? This action cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                style={{ height: 30, padding: "0 14px", background: "transparent", border: "1px solid var(--border-active)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer" }}
+              >Cancel</button>
+              <button
+                onClick={executeDelete}
+                style={{ height: 30, padding: "0 14px", background: "var(--error)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, fontFamily: "Inter, sans-serif", cursor: "pointer" }}
+              >Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="dashboard-body">
         <div className="sidebar" style={{ width: sidebarWidth }}>
@@ -214,18 +356,21 @@ export default function App({ onBack }: { onBack: () => void }) {
             </div>
           </div>
           <div className="ep-list">
-            {endpoints.length === 0 && (
-              <div style={{ fontSize: 11, color: "#222", padding: "8px 10px" }}>No endpoints yet</div>
+            {loadingEndpoints && (
+              <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "8px 10px" }}>Loading...</div>
+            )}
+            {!loadingEndpoints && endpoints.length === 0 && (
+              <div style={{ fontSize: 11, color: "var(--text-ghost)", padding: "8px 10px" }}>No endpoints yet</div>
             )}
             {endpoints.map(ep => (
               <div key={ep.id} className={`ep-item ${selected?.id === ep.id ? "active" : ""}`} onClick={() => setSelected(ep)}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div className="ep-name">{ep.name}</div>
                   <span
-                    onClick={e => { e.stopPropagation(); deleteEndpoint(ep.id); }}
-                    style={{ color: "#333", fontSize: 14, cursor: "pointer", padding: "0 2px" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#333")}
+                    onClick={e => { e.stopPropagation(); setConfirmDelete({ type: "endpoint", id: ep.id }); }}
+                    style={{ color: "var(--text-faint)", fontSize: 14, cursor: "pointer", padding: "0 2px" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--error)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--text-faint)")}
                   >×</span>
                 </div>
                 <div className="ep-id">{ep.id.slice(0, 14)}...</div>
@@ -258,18 +403,18 @@ export default function App({ onBack }: { onBack: () => void }) {
                     <div style={{ marginTop: 10 }}>
                       <div className="hook-label">
                         Signing Secret
-                        <span style={{ color: "#2a2a2a", marginLeft: 6 }}>(shown once)</span>
+                        <span style={{ color: "var(--text-ghost)", marginLeft: 6 }}>(shown once)</span>
                       </div>
-                      <div style={{ fontSize: 10, color: "#333", marginBottom: 6, lineHeight: 1.5 }}>
-                        Sign requests with this secret using HMAC-SHA256 and send the result in the <span style={{ color: "#555", fontFamily: "monospace" }}>x-webhook-signature</span> header. Unsigned requests are still accepted.
+                      <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 6, lineHeight: 1.5 }}>
+                        Sign requests with this secret using HMAC-SHA256 and send the result in the <span style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>x-webhook-signature</span> header.
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div className="hook-url" style={{ color: "#c084fc" }}>
+                        <div className="hook-url" style={{ color: "var(--purple)" }}>
                           {secrets[selected.id]}
                         </div>
                         <button
                           onClick={copySecret}
-                          style={{ height: 22, padding: "0 8px", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 4, color: "#555", fontSize: 10, fontFamily: "Inter, sans-serif", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                          style={{ height: 22, padding: "0 8px", background: "transparent", border: "1px solid var(--border-active)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, fontFamily: "Inter, sans-serif", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
                         >
                           {secretCopied ? "✓" : "copy"}
                         </button>
@@ -283,9 +428,14 @@ export default function App({ onBack }: { onBack: () => void }) {
               <div className="content-area">
                 <div className="feed" style={{ width: feedWidth }}>
                   <div className="feed-meta">
-                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: "#4ade80" }}>● live</span>
+                    {requests.length} request{requests.length !== 1 ? "s" : ""} —{" "}
+                    <span style={{ color: wsStatus === "connected" ? "var(--success)" : wsStatus === "reconnecting" ? "var(--warning)" : "var(--text-muted)" }}>
+                      ● {wsStatus === "connected" ? "live" : wsStatus === "reconnecting" ? "reconnecting" : "offline"}
+                    </span>
                   </div>
-                  {requests.length === 0 ? (
+                  {loadingRequests ? (
+                    <div className="empty">Loading requests...</div>
+                  ) : requests.length === 0 ? (
                     <div className="empty">No requests yet. Fire a curl at the URL above.</div>
                   ) : (
                     requests.map(r => (
@@ -298,10 +448,10 @@ export default function App({ onBack }: { onBack: () => void }) {
                         <span className="req-type">{r.content_type || "no content-type"}</span>
                         <span className="req-time">{timeAgo(r.received_at)}</span>
                         <span
-                          onClick={e => { e.stopPropagation(); deleteRequest(r.id); }}
-                          style={{ color: "#222", fontSize: 14, cursor: "pointer", marginLeft: 4 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
-                          onMouseLeave={e => (e.currentTarget.style.color = "#222")}
+                          onClick={e => { e.stopPropagation(); setConfirmDelete({ type: "request", id: r.id }); }}
+                          style={{ color: "var(--text-ghost)", fontSize: 14, cursor: "pointer", marginLeft: 4 }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "var(--error)")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "var(--text-ghost)")}
                         >×</span>
                       </div>
                     ))
@@ -309,18 +459,20 @@ export default function App({ onBack }: { onBack: () => void }) {
                 </div>
 
                 <div
-                  style={{ width: 4, cursor: "col-resize", flexShrink: 0, background: "transparent", borderRight: "1px solid #111" }}
+                  style={{ width: 4, cursor: "col-resize", flexShrink: 0, background: "transparent", borderRight: "1px solid var(--bg-raised)" }}
                   onMouseDown={() => {
                     isResizingFeed.current = true;
                     document.body.style.cursor = "col-resize";
                     document.body.style.userSelect = "none";
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#333")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--resize-hover)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 />
 
                 <div className="detail">
-                  {!detail ? (
+                  {loadingDetail ? (
+                    <div className="detail-empty">Loading...</div>
+                  ) : !detail ? (
                     <div className="detail-empty">← Select a request to inspect</div>
                   ) : (
                     <>
@@ -346,7 +498,7 @@ export default function App({ onBack }: { onBack: () => void }) {
                       {detail.body && (
                         <div className="detail-section">
                           <div className="detail-label">Body</div>
-                          <div className="body-block">{tryFormatJson(detail.body)}</div>
+                          <div className="body-block">{formatJson(detail.body)}</div>
                         </div>
                       )}
 
@@ -354,9 +506,11 @@ export default function App({ onBack }: { onBack: () => void }) {
                         <div className="detail-section">
                           <div className="detail-label">Query Params</div>
                           <table className="kv-table">
+                            <tbody>
                             {Object.entries(detail.query_params).map(([k, v]) => (
                               <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
                             ))}
+                            </tbody>
                           </table>
                         </div>
                       )}
@@ -364,9 +518,11 @@ export default function App({ onBack }: { onBack: () => void }) {
                       <div className="detail-section">
                         <div className="detail-label">Headers</div>
                         <table className="kv-table">
+                          <tbody>
                           {Object.entries(detail.headers).map(([k, v]) => (
                             <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
                           ))}
+                          </tbody>
                         </table>
                       </div>
 
@@ -377,26 +533,32 @@ export default function App({ onBack }: { onBack: () => void }) {
                           value={replayUrl}
                           onChange={e => setReplayUrl(e.target.value)}
                           placeholder="Destination URL"
+                          style={!replayUrlValid && replayUrl ? { borderColor: "var(--error)" } : {}}
                         />
+                        {!replayUrlValid && replayUrl && (
+                          <div style={{ fontSize: 10, color: "var(--error)", marginBottom: 6, marginTop: -4 }}>
+                            Enter a valid http:// or https:// URL
+                          </div>
+                        )}
                         <textarea
                           className="replay-textarea"
                           value={replayBody || ""}
                           onChange={e => setReplayBody(e.target.value)}
                           placeholder="Request body (edit before replaying)"
                         />
-                        <button className="replay-btn" onClick={replay} disabled={replaying}>
+                        <button className="replay-btn" onClick={replay} disabled={replaying || !replayUrlValid}>
                           {replaying ? "Sending..." : "↩ Replay"}
                         </button>
                         {replayResult && (
                           <div className={`replay-result ${replayResult.error ? "error" : "success"}`}>
                             {replayResult.error ? (
-                              <span style={{ color: "#f87171" }}>Error: {replayResult.error}</span>
+                              <span style={{ color: "var(--error)" }}>Error: {replayResult.error}</span>
                             ) : (
                               <>
-                                <span style={{ color: "#4ade80" }}>{replayResult.status_code}</span>
-                                <span style={{ color: "#444", margin: "0 8px" }}>·</span>
-                                <span style={{ color: "#444" }}>{replayResult.duration_ms}ms</span>
-                                <div style={{ marginTop: 8, color: "#555" }}>{replayResult.response_body?.slice(0, 200)}</div>
+                                <span style={{ color: "var(--success)" }}>{replayResult.status_code}</span>
+                                <span style={{ color: "var(--text-dim)", margin: "0 8px" }}>·</span>
+                                <span style={{ color: "var(--text-dim)" }}>{replayResult.duration_ms}ms</span>
+                                <div style={{ marginTop: 8, color: "var(--text-muted)" }}>{replayResult.response_body?.slice(0, 200)}</div>
                               </>
                             )}
                           </div>
@@ -410,14 +572,14 @@ export default function App({ onBack }: { onBack: () => void }) {
                             {attempts.map(a => (
                               <div key={a.id} className="attempt-row">
                                 <div className="attempt-dot" style={{
-                                  background: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c"
+                                  background: a.error ? "var(--error)" : a.status_code && parseInt(a.status_code) < 300 ? "var(--success)" : "var(--warning)"
                                 }} />
-                                <span style={{ color: a.error ? "#f87171" : a.status_code && parseInt(a.status_code) < 300 ? "#4ade80" : "#fb923c" }}>
+                                <span style={{ color: a.error ? "var(--error)" : a.status_code && parseInt(a.status_code) < 300 ? "var(--success)" : "var(--warning)" }}>
                                   {a.error ? "Error" : a.status_code}
                                 </span>
-                                <span style={{ color: "#444", flex: 1 }}>{a.destination_url}</span>
-                                <span style={{ color: "#333" }}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
-                                <span style={{ color: "#333" }}>{timeAgo(a.attempted_at)}</span>
+                                <span style={{ color: "var(--text-dim)", flex: 1 }}>{a.destination_url}</span>
+                                <span style={{ color: "var(--text-faint)" }}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
+                                <span style={{ color: "var(--text-faint)" }}>{timeAgo(a.attempted_at)}</span>
                               </div>
                             ))}
                           </div>

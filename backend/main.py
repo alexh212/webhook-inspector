@@ -1,19 +1,31 @@
-import uuid, json, time, os, hmac, hashlib, secrets
+import uuid, json, time, os, hmac, hashlib, secrets, logging
 import redis.asyncio as aioredis
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, Header
+from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from database import get_db, get_session_factory
 from models import Endpoint, CapturedRequest, DeliveryAttempt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from dotenv import load_dotenv
+from retry import enqueue_retry, validate_destination_url
 
 load_dotenv()
 
+logger = logging.getLogger("webhookinspector")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="WebhookInspector")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174").split(",")
 
@@ -25,7 +37,30 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-redis_client = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = aioredis.from_url(REDIS_URL)
+
+MAX_BODY_SIZE = 1 * 1024 * 1024  # 1 MB
+
+
+def parse_uuid(value: str, label: str = "ID") -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {label}: {value}")
 
 
 def get_session_id(x_session_id: Optional[str] = Header(None)) -> str:
@@ -34,33 +69,35 @@ def get_session_id(x_session_id: Optional[str] = Header(None)) -> str:
     return x_session_id
 
 
-async def enqueue_retry(request_id: str, destination_url: str, attempt_number: int):
-    if attempt_number >= 5:
-        return
-    delay = 5 ** attempt_number
-    job = json.dumps({
-        "request_id": request_id,
-        "destination_url": destination_url,
-        "attempt_number": attempt_number,
-    })
-    await redis_client.zadd("retry_queue", {job: time.time() + delay})
-
-
 class EndpointCreate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=255)
 
 class ReplayRequest(BaseModel):
-    destination_url: str
-    body_override: Optional[str] = None
+    destination_url: str = Field(..., max_length=2048)
+    body_override: Optional[str] = Field(None, max_length=MAX_BODY_SIZE)
 
 
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+async def health(db: AsyncSession = Depends(get_db)):
+    checks = {"db": "ok", "redis": "ok"}
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception:
+        checks["db"] = "error"
+    try:
+        await redis_client.ping()
+    except Exception:
+        checks["redis"] = "error"
+    healthy = all(v == "ok" for v in checks.values())
+    if not healthy:
+        raise HTTPException(status_code=503, detail=checks)
+    return {"status": "ok", **checks}
 
 
 @app.post("/api/endpoints")
+@limiter.limit("30/minute")
 async def create_endpoint(
+    request: Request,
     body: EndpointCreate,
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
@@ -76,31 +113,47 @@ async def create_endpoint(
 @app.get("/api/endpoints")
 async def list_endpoints(
     db: AsyncSession = Depends(get_db),
-    session_id: str = Depends(get_session_id)
+    session_id: str = Depends(get_session_id),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
     result = await db.execute(
         select(Endpoint)
         .where(Endpoint.session_id == session_id)
         .order_by(Endpoint.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     endpoints = result.scalars().all()
-    return [{"id": str(e.id), "name": e.name, "created_at": e.created_at, "secret": e.secret} for e in endpoints]
+    return [{"id": str(e.id), "name": e.name, "created_at": e.created_at} for e in endpoints]
 
 
 @app.api_route("/hooks/{endpoint_id}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Endpoint).where(Endpoint.id == uuid.UUID(endpoint_id)))
+@limiter.limit("60/minute")
+async def capture_webhook(request: Request, endpoint_id: str, db: AsyncSession = Depends(get_db)):
+    ep_uuid = parse_uuid(endpoint_id, "endpoint ID")
+    result = await db.execute(select(Endpoint).where(Endpoint.id == ep_uuid))
     ep = result.scalar_one_or_none()
     if not ep:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
+    content_length = int(request.headers.get("content-length", 0))
+    if content_length > MAX_BODY_SIZE:
+        raise HTTPException(status_code=413, detail="Request body too large")
+
     body = await request.body()
+    if len(body) > MAX_BODY_SIZE:
+        raise HTTPException(status_code=413, detail="Request body too large")
 
     if ep.secret:
-        signature = request.headers.get("x-webhook-signature", "")
+        signature = request.headers.get("x-webhook-signature")
+        if not signature:
+            raise HTTPException(status_code=401, detail="Missing webhook signature")
         expected = hmac.new(ep.secret.encode(), body, hashlib.sha256).hexdigest()
-        if signature and not hmac.compare_digest(signature, expected):
+        if not hmac.compare_digest(signature, expected):
             raise HTTPException(status_code=401, detail="Invalid signature")
+
+    source_ip = request.client.host if request.client else "unknown"
 
     captured = CapturedRequest(
         endpoint_id=ep.id,
@@ -108,7 +161,7 @@ async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession =
         headers=dict(request.headers),
         body=body.decode("utf-8", errors="replace"),
         query_params=dict(request.query_params),
-        source_ip=request.client.host,
+        source_ip=source_ip,
         content_type=request.headers.get("content-type"),
     )
     db.add(captured)
@@ -132,10 +185,13 @@ async def capture_webhook(endpoint_id: str, request: Request, db: AsyncSession =
 async def list_requests(
     endpoint_id: str,
     db: AsyncSession = Depends(get_db),
-    session_id: str = Depends(get_session_id)
+    session_id: str = Depends(get_session_id),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
 ):
+    ep_uuid = parse_uuid(endpoint_id, "endpoint ID")
     result = await db.execute(select(Endpoint).where(
-        Endpoint.id == uuid.UUID(endpoint_id),
+        Endpoint.id == ep_uuid,
         Endpoint.session_id == session_id
     ))
     ep = result.scalar_one_or_none()
@@ -144,8 +200,10 @@ async def list_requests(
 
     result = await db.execute(
         select(CapturedRequest)
-        .where(CapturedRequest.endpoint_id == uuid.UUID(endpoint_id))
+        .where(CapturedRequest.endpoint_id == ep_uuid)
         .order_by(CapturedRequest.received_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     reqs = result.scalars().all()
     return [{"id": str(r.id), "method": r.method, "content_type": r.content_type,
@@ -158,7 +216,8 @@ async def get_request(
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
 ):
-    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+    req_uuid = parse_uuid(request_id, "request ID")
+    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == req_uuid))
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=404, detail="Not found")
@@ -177,16 +236,25 @@ async def get_request(
 
 @app.websocket("/ws/endpoints/{endpoint_id}")
 async def websocket_feed(websocket: WebSocket, endpoint_id: str, session_id: Optional[str] = None):
+    try:
+        ep_uuid = uuid.UUID(endpoint_id)
+    except (ValueError, AttributeError):
+        await websocket.close(code=4000)
+        return
+
     await websocket.accept()
 
     async with get_session_factory()() as db:
-        result = await db.execute(select(Endpoint).where(Endpoint.id == uuid.UUID(endpoint_id)))
+        result = await db.execute(select(Endpoint).where(Endpoint.id == ep_uuid))
         ep = result.scalar_one_or_none()
         if not ep:
             await websocket.close(code=4004)
             return
+        if not session_id or session_id != ep.session_id:
+            await websocket.close(code=4001)
+            return
 
-    sub_redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+    sub_redis = aioredis.from_url(REDIS_URL)
     pubsub = sub_redis.pubsub()
     await pubsub.subscribe(f"endpoint:{endpoint_id}")
     try:
@@ -201,13 +269,22 @@ async def websocket_feed(websocket: WebSocket, endpoint_id: str, session_id: Opt
 
 
 @app.post("/api/requests/{request_id}/replay")
+@limiter.limit("10/minute")
 async def replay_request(
+    request: Request,
     request_id: str,
     body: ReplayRequest,
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
 ):
-    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+    req_uuid = parse_uuid(request_id, "request ID")
+
+    try:
+        validate_destination_url(body.destination_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == req_uuid))
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -240,10 +317,11 @@ async def replay_request(
         attempt.response_body = response.text
         attempt.duration_ms = str(round((time.time() - start) * 1000))
         if response.status_code >= 500:
-            await enqueue_retry(str(r.id), body.destination_url, 1)
+            await enqueue_retry(redis_client, str(r.id), body.destination_url, 1)
     except Exception as e:
         attempt.error = str(e)
-        await enqueue_retry(str(r.id), body.destination_url, 1)
+        logger.warning("Replay failed for request %s: %s", request_id, e)
+        await enqueue_retry(redis_client, str(r.id), body.destination_url, 1)
 
     db.add(attempt)
     await db.commit()
@@ -264,7 +342,8 @@ async def list_attempts(
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
 ):
-    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+    req_uuid = parse_uuid(request_id, "request ID")
+    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == req_uuid))
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=404, detail="Not found")
@@ -278,7 +357,7 @@ async def list_attempts(
 
     result = await db.execute(
         select(DeliveryAttempt)
-        .where(DeliveryAttempt.request_id == uuid.UUID(request_id))
+        .where(DeliveryAttempt.request_id == req_uuid)
         .order_by(DeliveryAttempt.attempted_at.desc())
     )
     attempts = result.scalars().all()
@@ -292,8 +371,9 @@ async def delete_endpoint(
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
 ):
+    ep_uuid = parse_uuid(endpoint_id, "endpoint ID")
     result = await db.execute(select(Endpoint).where(
-        Endpoint.id == uuid.UUID(endpoint_id),
+        Endpoint.id == ep_uuid,
         Endpoint.session_id == session_id
     ))
     ep = result.scalar_one_or_none()
@@ -310,7 +390,8 @@ async def delete_request(
     db: AsyncSession = Depends(get_db),
     session_id: str = Depends(get_session_id)
 ):
-    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id)))
+    req_uuid = parse_uuid(request_id, "request ID")
+    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == req_uuid))
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=404, detail="Not found")
