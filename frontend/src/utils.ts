@@ -14,6 +14,8 @@ export const METHOD_COLOR: Record<string, string> = {
   PATCH: "#c084fc",
 };
 
+export const GITHUB_PROFILE_URL = "https://github.com/alexh212";
+
 export function formatJson(str: string): string {
   try {
     return JSON.stringify(JSON.parse(str), null, 2);

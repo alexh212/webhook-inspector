@@ -75,10 +75,12 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
 
 /* Layout */
 .layout { display: flex; height: 100vh; flex-direction: column; }
-.dashboard-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 20px; height: 48px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); flex-shrink: 0; }
+.dashboard-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); flex-shrink: 0; }
 .dashboard-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
-.dashboard-nav-back { font-size: 11px; color: var(--text-dim); cursor: pointer; transition: color 0.15s; background: none; border: none; font-family: 'Inter', sans-serif; }
-.dashboard-nav-back:hover { color: var(--text-secondary); }
+.nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.nav-btn:hover { border-color: var(--border-strong); color: var(--text); }
+.github-nav-link { font-size: 11px; color: var(--text-dim); text-decoration: none; font-family: 'Inter', sans-serif; display: inline-flex; align-items: center; gap: 3px; transition: color 0.15s; white-space: nowrap; }
+.github-nav-link:hover { color: var(--text-secondary); }
 .dashboard-body { display: flex; flex: 1; overflow: hidden; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 .content-area { flex: 1; display: flex; overflow: hidden; }

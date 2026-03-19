@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { timeAgo, METHOD_COLOR, formatJson, hmacSign, type Theme } from "./utils";
+import { timeAgo, METHOD_COLOR, formatJson, hmacSign, GITHUB_PROFILE_URL, type Theme } from "./utils";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const DEMO_SESSION = "demo-session-webhookinspector-public";
@@ -156,11 +156,9 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .desktop-only { display: block; }
         @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
 
-        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 32px; height: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
+        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
         .l-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
         .l-nav-right { display: flex; align-items: center; gap: 8px; }
-        .l-nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
-        .l-nav-btn:hover { border-color: var(--border-dim); color: var(--text); }
         .l-hero { max-width: 1100px; margin: 0 auto; padding: 80px 32px 60px; }
         .l-hero-inner { display: flex; align-items: flex-start; gap: 80px; }
         .l-hero-copy { flex: 0 0 360px; padding-top: 8px; }
@@ -222,12 +220,23 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
 
       <div className="desktop-only landing-page">
         <nav className="l-nav">
-          <span className="l-nav-logo">Webhook Inspector</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className="l-nav-logo">Webhook Inspector</span>
+            <span style={{ color: "var(--border-hover)" }}>·</span>
+            <a
+              className="github-nav-link"
+              href={GITHUB_PROFILE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/alexh212 ↗
+            </a>
+          </div>
           <div className="l-nav-right">
             <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
               {theme === "dark" ? "☀" : "☾"}
             </button>
-            <button className="l-nav-btn" onClick={onEnter}>Open dashboard →</button>
+            <button className="nav-btn" onClick={onEnter}>Open dashboard →</button>
           </div>
         </nav>
 

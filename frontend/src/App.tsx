@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { timeAgo, METHOD_COLOR, formatJson, isValidUrl, type Theme } from "./utils";
+import { timeAgo, METHOD_COLOR, formatJson, isValidUrl, GITHUB_PROFILE_URL, type Theme } from "./utils";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -293,12 +293,23 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
   return (
     <div className="layout">
       <nav className="dashboard-nav">
-        <span className="dashboard-nav-logo">Webhook Inspector</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span className="dashboard-nav-logo">Webhook Inspector</span>
+          <span style={{ color: "var(--border-hover)" }}>·</span>
+          <a
+            className="github-nav-link"
+            href={GITHUB_PROFILE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            github.com/alexh212 ↗
+          </a>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
             {theme === "dark" ? "☀" : "☾"}
           </button>
-          <button className="dashboard-nav-back" onClick={onBack}>← Back to home</button>
+          <button className="nav-btn" onClick={onBack}>← Home</button>
         </div>
       </nav>
 
