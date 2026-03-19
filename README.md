@@ -1,38 +1,33 @@
 # Webhook Inspector
-
-Real-time webhook inspection, replay, and delivery monitoring.
-
-## What it does
-
-Point any webhook at your endpoint. Every request is captured instantly and appears in the dashboard via WebSocket — no refresh needed. Click any request to inspect the full payload, headers, and metadata. Replay it to your server, edit the body first, or let the retry worker handle failures automatically.
-
+ 
+Full-stack developer tool for capturing, inspecting, and replaying webhook requests in real time.
+ 
+## How it works
+ 
+Point any webhook at your generated endpoint. Every incoming request appears in the dashboard instantly via WebSocket — no refresh needed. Inspect the full payload, headers, and metadata, then replay it to any destination or let the retry worker handle failures automatically. Each endpoint gets a signing secret for HMAC-SHA256 verification, matching the pattern used by Stripe and GitHub.
+ 
 ## Architecture
-
-- **Ingestion** — accepts any HTTP method, captures headers, body, query params, and source IP
-- **Real-time broadcasting** — Redis pub/sub publishes each captured request to WebSocket subscribers instantly
+ 
+- **Ingestion** — captures any HTTP method, headers, body, query params, and source IP
+- **Real-time broadcasting** — Redis pub/sub pushes each request to WebSocket subscribers instantly
 - **Replay engine** — reconstructs and fires stored requests to any destination via httpx
 - **Retry worker** — separate background process, Redis sorted set as a time-delayed queue, exponential backoff (5s → 25s → 125s → 625s), max 5 attempts
-- **Session isolation** — session ID generated in the browser, stored in localStorage, sent as a header on every request — no login required, data is fully scoped per user
-- **HMAC signature verification** — each endpoint gets a signing secret; senders sign payloads with HMAC-SHA256 and pass the result in `x-webhook-signature` — the same pattern used by Stripe and GitHub
-
-## Tech Stack
-
-- FastAPI, Python, async/await
-- PostgreSQL + SQLAlchemy + Alembic
-- Redis (pub/sub for real-time, sorted sets for retry queue)
-- React, TypeScript, Vite
-- pytest + GitHub Actions CI
-- Deployed on Render
-
-## Live Demo
-
+- **Session isolation** — session ID generated in the browser, scoped at the query layer, no login required
+ 
+## Tech stack
+ 
+FastAPI, Python, PostgreSQL, SQLAlchemy, Alembic, Redis, React, TypeScript, Vite, pytest, GitHub Actions, Render
+ 
+## Live demo
+ 
 https://webhook-inspector-sx1y.onrender.com
-
-## Running Locally
+ 
+## Run locally
+ 
 ```bash
 git clone https://github.com/alexh212/webhook-inspector
 cd webhook-inspector
-
+ 
 # Backend
 cd backend
 python -m venv venv && source venv/bin/activate
@@ -40,38 +35,25 @@ pip install -r requirements.txt
 cp .env.example .env
 alembic upgrade head
 uvicorn main:app --reload
-
+ 
 # Worker (separate terminal)
 python -m worker
-
+ 
 # Frontend (separate terminal)
 cd ../frontend
-npm install
-npm run dev
+npm install && npm run dev
 ```
-
+ 
 ## Tests
+ 
 ```bash
-cd backend
-venv/bin/pytest tests/ -v
+cd backend && pytest tests/ -v
 ```
-
-## Environment Variables
+ 
+## Environment variables
+ 
 ```
 DATABASE_URL=postgresql+asyncpg://localhost/webhookinspector
 REDIS_URL=redis://localhost:6379
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
-```
-
-## API
-```
-POST   /api/endpoints                    Create endpoint (returns signing secret)
-GET    /api/endpoints                    List your endpoints
-ANY    /hooks/{id}                       Capture a webhook (public, no auth)
-GET    /api/endpoints/{id}/requests      List captured requests
-GET    /api/requests/{id}                Get full request detail
-POST   /api/requests/{id}/replay         Replay a request
-GET    /api/requests/{id}/attempts       List delivery attempts
-DELETE /api/endpoints/{id}               Delete an endpoint
-DELETE /api/requests/{id}                Delete a request
 ```
