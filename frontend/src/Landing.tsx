@@ -212,7 +212,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
 
       <div className="mobile-block">
         <div style={{ fontSize: 28, marginBottom: 16 }}>↪</div>
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Webhook Inspector</div>
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Relay</div>
         <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
           This tool is designed for desktop. Open it on a larger screen to see the live demo and dashboard.
         </div>
@@ -221,7 +221,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
       <div className="desktop-only landing-page">
         <nav className="l-nav">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="l-nav-logo">Webhook Inspector</span>
+            <span className="l-nav-logo">Relay</span>
             <span style={{ color: "var(--border-hover)" }}>·</span>
             <a
               className="github-nav-link"

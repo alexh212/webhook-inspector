@@ -294,7 +294,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
     <div className="layout">
       <nav className="dashboard-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="dashboard-nav-logo">Webhook Inspector</span>
+          <span className="dashboard-nav-logo">Relay</span>
           <span style={{ color: "var(--border-hover)" }}>·</span>
           <a
             className="github-nav-link"
