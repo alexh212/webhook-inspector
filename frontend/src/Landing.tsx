@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { timeAgo, METHOD_COLOR, formatJson, hmacSign, GITHUB_PROFILE_URL, type Theme } from "./utils";
+import {
+  DEFAULT_REPLAY_URL,
+  REPLAY_405_HINT,
+  REPLAY_PRESETS,
+  WEBHOOK_EXPLAINER,
+  WEBHOOK_ONELINER,
+} from "./onboardingCopy";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const DEMO_SESSION = "demo-session-webhookinspector-public";
@@ -46,7 +53,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
   const [selected, setSelected] = useState<LiveRequest | null>(null);
   const [curlCopied, setCurlCopied] = useState(false);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
-  const [replayUrl, setReplayUrl] = useState("https://httpbin.org/post");
+  const [replayUrl, setReplayUrl] = useState(DEFAULT_REPLAY_URL);
   const [replayResult, setReplayResult] = useState<{ status_code: string; duration_ms: string; response_body?: string; error: string | null } | null>(null);
   const [replaying, setReplaying] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -195,6 +202,16 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-replay-btn:hover { background: var(--cta-hover); }
         .l-replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .l-replay-result { margin-top: 8px; font-size: 10px; font-family: monospace; }
+        .l-webhook-intro { margin-bottom: 28px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; }
+        .l-webhook-intro-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .l-webhook-intro-body { font-size: 12px; color: var(--text-muted); line-height: 1.65; }
+        .l-preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 4px; align-items: center; }
+        .l-preset-chip { height: 24px; padding: 0 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: 'Inter', sans-serif; color: var(--text-muted); cursor: pointer; transition: border-color 0.12s, color 0.12s; }
+        .l-preset-chip:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+        .l-replay-method-hint { font-size: 10px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
+        .l-httpbin-links { font-size: 10px; margin-top: 4px; color: var(--text-faint); }
+        .l-httpbin-links a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+        .l-httpbin-links a:hover { color: var(--text-secondary); }
         .l-curl-box { margin-top: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
         .l-curl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .l-curl-label { font-size: 11px; color: var(--text-dim); }
@@ -245,6 +262,13 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
             <div className="l-hero-copy">
               <h1 className="l-h1">Inspect, replay,<br />and debug<br />webhooks.</h1>
               <p className="l-sub">Point any webhook at your endpoint. See every request instantly, inspect the full payload, and replay it to your server whenever you need.</p>
+              <div className="l-webhook-intro">
+                <div className="l-webhook-intro-title">What&apos;s a webhook?</div>
+                <div className="l-webhook-intro-body">
+                  <strong style={{ color: "var(--text-secondary)" }}>{WEBHOOK_ONELINER}</strong>{" "}
+                  {WEBHOOK_EXPLAINER}
+                </div>
+              </div>
               <button className="l-cta" onClick={onEnter}>Get started →</button>
               <div className="l-features">
                 {[
@@ -318,6 +342,27 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                         )}
 
                         <div className="l-section-label">Replay to</div>
+                        <div className="l-preset-row">
+                          {REPLAY_PRESETS.map(p => (
+                            <button
+                              key={p.url}
+                              type="button"
+                              className="l-preset-chip"
+                              title={p.hint}
+                              onClick={() => setReplayUrl(p.url)}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="l-httpbin-links">
+                          Test hosts:{" "}
+                          <a href="https://httpbin.org/anything" target="_blank" rel="noopener noreferrer">httpbin.org/anything</a>
+                          {" · "}
+                          <a href="https://httpbin.org/get" target="_blank" rel="noopener noreferrer">/get</a>
+                          {" · "}
+                          <a href="https://httpbin.org/post" target="_blank" rel="noopener noreferrer">/post</a>
+                        </div>
                         <div className="l-replay-row">
                           <input
                             className="l-replay-input"
@@ -329,6 +374,9 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                             {replaying ? "..." : "↩ Replay"}
                           </button>
                         </div>
+                        <div className="l-replay-method-hint">
+                          Replay sends the same HTTP method as this request ({selected.method}). Use /anything for any method, or match /get vs /post.
+                        </div>
                         {replayResult && (
                           <div className="l-replay-result">
                             {replayResult.error ? (
@@ -338,6 +386,11 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                                 <span style={{ color: parseInt(replayResult.status_code) < 400 ? "var(--success)" : "var(--error)" }}>
                                   {replayResult.status_code} · {replayResult.duration_ms}ms
                                 </span>
+                                {replayResult.status_code === "405" && (
+                                  <div className="l-replay-method-hint" style={{ marginTop: 6, color: "var(--text-muted)" }}>
+                                    {REPLAY_405_HINT}
+                                  </div>
+                                )}
                                 {replayResult.response_body && (
                                   <div style={{
                                     marginTop: 6, background: "var(--bg-raised)", border: "1px solid var(--border)",

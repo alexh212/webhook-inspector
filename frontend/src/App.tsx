@@ -1,5 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { timeAgo, METHOD_COLOR, formatJson, isValidUrl, GITHUB_PROFILE_URL, type Theme } from "./utils";
+import {
+  DEFAULT_REPLAY_URL,
+  parseReplayError,
+  REPLAY_405_HINT,
+  REPLAY_PRESETS,
+  REPLAY_TIPS,
+  WEBHOOK_EXPLAINER_SHORT,
+  WEBHOOK_ONELINER,
+} from "./onboardingCopy";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -44,7 +53,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
   const [newName, setNewName] = useState("");
   const [copied, setCopied] = useState(false);
   const [secretCopied, setSecretCopied] = useState(false);
-  const [replayUrl, setReplayUrl] = useState("http://localhost:9000");
+  const [replayUrl, setReplayUrl] = useState(DEFAULT_REPLAY_URL);
   const [replayBody, setReplayBody] = useState<string | null>(null);
   const [replayResult, setReplayResult] = useState<ReplayResult | null>(null);
   const [replaying, setReplaying] = useState(false);
@@ -58,6 +67,9 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [wsStatus, setWsStatus] = useState<"disconnected" | "connected" | "reconnecting">("disconnected");
   const [confirmDelete, setConfirmDelete] = useState<{ type: "endpoint" | "request"; id: string } | null>(null);
+  const [gettingStartedDismissed, setGettingStartedDismissed] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem("wi_dismiss_getting_started") === "1"
+  );
   const isResizingSidebar = useRef(false);
   const isResizingFeed = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -263,7 +275,8 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
       setReplayResult(data);
       loadAttempts(detail.id);
     } catch (e: unknown) {
-      showError(`Replay failed: ${e instanceof Error ? e.message : e}`);
+      const raw = e instanceof Error ? e.message : String(e);
+      showError(`Replay failed: ${parseReplayError(raw)}`);
     } finally {
       setReplaying(false);
     }
@@ -436,6 +449,89 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                 <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
               </div>
 
+              {selected && !gettingStartedDismissed && (
+                <div
+                  style={{
+                    margin: "0 22px 12px",
+                    padding: "12px 14px",
+                    background: "var(--bg-surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                    color: "var(--text-muted)",
+                    position: "relative",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem("wi_dismiss_getting_started", "1");
+                      setGettingStartedDismissed(true);
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      right: 10,
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--text-faint)",
+                      cursor: "pointer",
+                      fontSize: 16,
+                      lineHeight: 1,
+                      padding: 4,
+                    }}
+                    aria-label="Dismiss getting started"
+                  >
+                    ×
+                  </button>
+                  <div style={{ fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Getting started
+                  </div>
+                  <p style={{ marginBottom: 10 }}>
+                    <strong style={{ color: "var(--text)" }}>{WEBHOOK_ONELINER}</strong>{" "}
+                    {WEBHOOK_EXPLAINER_SHORT}
+                  </p>
+                  <ul style={{ margin: "0 0 12px 18px", padding: 0 }}>
+                    {REPLAY_TIPS.map((tip, i) => (
+                      <li key={i} style={{ marginBottom: 6 }}>{tip}</li>
+                    ))}
+                  </ul>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 6 }}>Try replay to (test endpoints):</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                    {REPLAY_PRESETS.map((p) => (
+                      <button
+                        key={p.url}
+                        type="button"
+                        onClick={() => setReplayUrl(p.url)}
+                        title={p.hint}
+                        style={{
+                          height: 26,
+                          padding: "0 10px",
+                          background: "var(--bg-raised)",
+                          border: "1px solid var(--border-active)",
+                          borderRadius: 6,
+                          fontSize: 10,
+                          fontFamily: "Inter, sans-serif",
+                          color: "var(--text-secondary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-faint)" }}>
+                    Docs:{" "}
+                    <a href="https://httpbin.org/anything" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)" }}>httpbin.org/anything</a>
+                    {" · "}
+                    <a href="https://httpbin.org/get" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)" }}>/get</a>
+                    {" · "}
+                    <a href="https://httpbin.org/post" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)" }}>/post</a>
+                  </div>
+                </div>
+              )}
+
               <div className="content-area">
                 <div className="feed" style={{ width: feedWidth }}>
                   <div className="feed-meta">
@@ -539,6 +635,32 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
 
                       <div className="replay-section">
                         <div className="detail-label" style={{ marginBottom: 12 }}>Replay</div>
+                        <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 8, lineHeight: 1.5 }}>
+                          Same method as this request ({detail.method}). Use a URL that accepts {detail.method}; localhost is blocked—use a public URL or a tunnel.
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                          {REPLAY_PRESETS.map((p) => (
+                            <button
+                              key={p.url}
+                              type="button"
+                              onClick={() => setReplayUrl(p.url)}
+                              title={p.hint}
+                              style={{
+                                height: 24,
+                                padding: "0 8px",
+                                background: "var(--bg-raised)",
+                                border: "1px solid var(--border-active)",
+                                borderRadius: 4,
+                                fontSize: 10,
+                                fontFamily: "Inter, sans-serif",
+                                color: "var(--text-muted)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
                         <input
                           className="replay-input"
                           value={replayUrl}
@@ -566,9 +688,14 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                               <span style={{ color: "var(--error)" }}>Error: {replayResult.error}</span>
                             ) : (
                               <>
-                                <span style={{ color: "var(--success)" }}>{replayResult.status_code}</span>
+                                <span style={{ color: parseInt(replayResult.status_code, 10) < 400 ? "var(--success)" : "var(--error)" }}>{replayResult.status_code}</span>
                                 <span style={{ color: "var(--text-dim)", margin: "0 8px" }}>·</span>
                                 <span style={{ color: "var(--text-dim)" }}>{replayResult.duration_ms}ms</span>
+                                {replayResult.status_code === "405" && (
+                                  <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                                    {REPLAY_405_HINT}
+                                  </div>
+                                )}
                                 <div style={{ marginTop: 8, color: "var(--text-muted)" }}>{replayResult.response_body?.slice(0, 200)}</div>
                               </>
                             )}
