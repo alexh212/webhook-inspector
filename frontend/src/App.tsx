@@ -306,7 +306,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
       <nav className="dashboard-nav">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="dashboard-nav-logo">Relay</span>
-          <
+          <a
             className="github-nav-link"
             href={GITHUB_PROFILE_URL}
             target="_blank"

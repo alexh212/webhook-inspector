@@ -235,7 +235,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         <nav className="l-nav">
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="l-nav-logo">Relay</span>
-            <
+            <a
               className="github-nav-link"
               href={GITHUB_PROFILE_URL}
               target="_blank"
