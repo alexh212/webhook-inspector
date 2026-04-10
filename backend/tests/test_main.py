@@ -1,5 +1,8 @@
 import hmac
 import hashlib
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from retry import sanitize_headers
 
 TEST_SESSION = "test-session-id-pytest-123456"
 HEADERS = {"x-session-id": TEST_SESSION}
@@ -202,3 +205,111 @@ async def test_pagination(client):
     res = await client.get("/api/endpoints?limit=2&offset=0", headers=HEADERS)
     assert res.status_code == 200
     assert len(res.json()) <= 2
+
+
+async def _capture(client, name: str) -> tuple[str, str]:
+    """Create an endpoint, fire one signed request, return (ep_id, req_id)."""
+    ep = await client.post("/api/endpoints", json={"name": name}, headers=HEADERS)
+    ep_data = ep.json()
+    ep_id, secret = ep_data["id"], ep_data["secret"]
+    body = b'{"event": "test"}'
+    sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    await client.post(f"/hooks/{ep_id}", content=body, headers={"x-webhook-signature": sig})
+    reqs = await client.get(f"/api/endpoints/{ep_id}/requests", headers=HEADERS)
+    return ep_id, reqs.json()[0]["id"]
+
+
+async def test_get_request_detail(client):
+    _, req_id = await _capture(client, "Detail Test")
+    res = await client.get(f"/api/requests/{req_id}", headers=HEADERS)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["id"] == req_id
+    assert data["method"] == "POST"
+    assert "headers" in data
+    assert "body" in data
+    assert "query_params" in data
+
+
+async def test_get_request_detail_forbidden(client):
+    _, req_id = await _capture(client, "Forbidden Detail Test")
+    res = await client.get(f"/api/requests/{req_id}", headers={"x-session-id": "different-session-xyz"})
+    assert res.status_code == 403
+
+
+async def test_delete_request(client):
+    _, req_id = await _capture(client, "Delete Request Test")
+    res = await client.delete(f"/api/requests/{req_id}", headers=HEADERS)
+    assert res.status_code == 200
+    assert res.json() == {"status": "deleted"}
+    res = await client.get(f"/api/requests/{req_id}", headers=HEADERS)
+    assert res.status_code == 404
+
+
+async def test_delete_request_forbidden(client):
+    _, req_id = await _capture(client, "Delete Forbidden Test")
+    res = await client.delete(f"/api/requests/{req_id}", headers={"x-session-id": "different-session-xyz"})
+    assert res.status_code == 403
+
+
+def _mock_httpx_client(status_code: int = 200, body: str = "ok"):
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    mock_response.headers = {}
+    mock_response.text = body
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.request = AsyncMock(return_value=mock_response)
+    return mock_client
+
+
+async def test_replay_success(client):
+    _, req_id = await _capture(client, "Replay Success Test")
+    with patch("main.httpx.AsyncClient", return_value=_mock_httpx_client(200, '{"ok": true}')):
+        res = await client.post(
+            f"/api/requests/{req_id}/replay",
+            json={"destination_url": "https://httpbin.org/anything"},
+            headers=HEADERS,
+        )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status_code"] == "200"
+    assert data["error"] is None
+    assert data["duration_ms"] is not None
+
+
+async def test_list_attempts_after_replay(client):
+    _, req_id = await _capture(client, "Attempts Test")
+    with patch("main.httpx.AsyncClient", return_value=_mock_httpx_client(200)):
+        await client.post(
+            f"/api/requests/{req_id}/replay",
+            json={"destination_url": "https://httpbin.org/anything"},
+            headers=HEADERS,
+        )
+    res = await client.get(f"/api/requests/{req_id}/attempts", headers=HEADERS)
+    assert res.status_code == 200
+    attempts = res.json()
+    assert len(attempts) == 1
+    assert attempts[0]["destination_url"] == "https://httpbin.org/anything"
+    assert attempts[0]["status_code"] == "200"
+
+
+def test_sanitize_headers_removes_hop_by_hop():
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer token",
+        "host": "example.com",
+        "connection": "keep-alive",
+        "content-length": "42",
+        "transfer-encoding": "chunked",
+        "x-custom": "value",
+    }
+    result = sanitize_headers(headers)
+    assert result == {"Content-Type": "application/json", "Authorization": "Bearer token", "x-custom": "value"}
+
+
+def test_sanitize_headers_case_insensitive():
+    headers = {"Host": "example.com", "CONNECTION": "keep-alive", "Content-Type": "application/json"}
+    result = sanitize_headers(headers)
+    assert result == {"Content-Type": "application/json"}
