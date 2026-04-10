@@ -157,14 +157,13 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
     <>
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
         .req-item { animation: fadeUp 0.25s ease forwards; }
         .landing-page { background: var(--bg); color: var(--text); min-height: 100vh; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
         .mobile-block { display: none; background: var(--bg); color: var(--text); height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Inter', sans-serif; }
         .desktop-only { display: block; }
         @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
 
-        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
+        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
         .l-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
         .l-nav-right { display: flex; align-items: center; gap: 8px; }
         .l-hero { max-width: 1100px; margin: 0 auto; padding: 80px 32px 60px; }
@@ -210,9 +209,6 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-preset-chip { height: 24px; padding: 0 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: 'Inter', sans-serif; color: var(--text-muted); cursor: pointer; transition: border-color 0.12s, color 0.12s; }
         .l-preset-chip:hover { border-color: var(--border-strong); color: var(--text-secondary); }
         .l-replay-method-hint { font-size: 10px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
-        .l-httpbin-links { font-size: 10px; margin-top: 4px; color: var(--text-faint); }
-        .l-httpbin-links a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
-        .l-httpbin-links a:hover { color: var(--text-secondary); }
         .l-curl-box { margin-top: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
         .l-curl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .l-curl-label { font-size: 11px; color: var(--text-dim); }
@@ -223,7 +219,6 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-usecases-title { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 32px; }
         .l-usecases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--bg-raised); border: 1px solid var(--bg-raised); border-radius: 8px; overflow: hidden; }
         .l-usecase { background: var(--bg); padding: 24px; }
-        .l-usecase-icon { font-size: 18px; margin-bottom: 10px; }
         .l-usecase-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
         .l-usecase-desc { font-size: 12px; color: var(--text-faint); line-height: 1.6; }
       `}</style>
@@ -362,14 +357,6 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                             </button>
                           ))}
                         </div>
-                        <div className="l-httpbin-links">
-                          Test hosts:{" "}
-                          <a href="https://httpbin.org/anything" target="_blank" rel="noopener noreferrer">httpbin.org/anything</a>
-                          {" · "}
-                          <a href="https://httpbin.org/get" target="_blank" rel="noopener noreferrer">/get</a>
-                          {" · "}
-                          <a href="https://httpbin.org/post" target="_blank" rel="noopener noreferrer">/post</a>
-                        </div>
                         <div className="l-replay-row">
                           <input
                             className="l-replay-input"
@@ -436,15 +423,14 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
           <div className="l-usecases-title">Use cases</div>
           <div className="l-usecases-grid">
             {[
-              { icon: "💳", title: "Payment webhooks", desc: "Stripe, Paddle, or Braintree firing events to your server. See exactly what payload arrived, replay it against your local handler to debug edge cases." },
-              { icon: "🔁", title: "CI/CD pipelines", desc: "GitHub, GitLab, or Bitbucket sending push events. Inspect the full payload structure before writing your integration code." },
-              { icon: "📦", title: "E-commerce events", desc: "Shopify order.created or fulfillment.updated webhooks. Capture them all, replay the tricky ones against your processing logic." },
-              { icon: "🔔", title: "Alerting systems", desc: "PagerDuty, Datadog, or custom alerting pipelines. See every alert payload in real time and test your response handlers safely." },
-              { icon: "🔧", title: "Local development", desc: "Your server is running locally and can't receive webhooks directly. Point the webhook at WebhookInspector and replay it to localhost." },
-              { icon: "🐛", title: "Debugging failures", desc: "A webhook fired at 3am and your server was down. The request is saved. Replay it once your server is back up — no data lost." },
+              { title: "Payment webhooks", desc: "Stripe, Paddle, or Braintree firing events to your server. See exactly what payload arrived, replay it against your local handler to debug edge cases." },
+              { title: "CI/CD pipelines", desc: "GitHub, GitLab, or Bitbucket sending push events. Inspect the full payload structure before writing your integration code." },
+              { title: "E-commerce events", desc: "Shopify order.created or fulfillment.updated webhooks. Capture them all, replay the tricky ones against your processing logic." },
+              { title: "Alerting systems", desc: "PagerDuty, Datadog, or custom alerting pipelines. See every alert payload in real time and test your response handlers safely." },
+              { title: "Local development", desc: "Your server is running locally and can't receive webhooks directly. Point the webhook at Relay and replay it to localhost." },
+              { title: "Debugging failures", desc: "A webhook fired at 3am and your server was down. The request is saved. Replay it once your server is back up — no data lost." },
             ].map(u => (
               <div key={u.title} className="l-usecase">
-                <div className="l-usecase-icon">{u.icon}</div>
                 <div className="l-usecase-title">{u.title}</div>
                 <div className="l-usecase-desc">{u.desc}</div>
               </div>

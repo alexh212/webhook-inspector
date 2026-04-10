@@ -95,7 +95,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
 .ep-item:hover { background: var(--bg-raised); }
 .ep-item.active { background: var(--bg-raised); border-color: var(--border-active); }
 .ep-name { font-size: 12px; color: var(--text); font-weight: 500; }
-.ep-id { font-size: 10px; color: var(--text-faint); margin-top: 2px; font-family: monospace; }
 
 /* Resize handle */
 .resize-handle { width: 4px; cursor: col-resize; position: absolute; right: 0; top: 0; bottom: 0; z-index: 10; transition: background 0.15s; }

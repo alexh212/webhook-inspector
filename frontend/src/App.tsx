@@ -6,9 +6,6 @@ import {
   parseReplayError,
   REPLAY_405_HINT,
   REPLAY_PRESETS,
-  REPLAY_TIPS,
-  WEBHOOK_EXPLAINER_SHORT,
-  WEBHOOK_ONELINER,
 } from "./onboardingCopy";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -404,7 +401,6 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                     onMouseLeave={e => (e.currentTarget.style.color = "var(--text-faint)")}
                   >×</span>
                 </div>
-                <div className="ep-id">{ep.id.slice(0, 14)}...</div>
               </div>
             ))}
           </div>
@@ -436,8 +432,8 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                         Signing Secret
                         <span style={{ color: "var(--text-ghost)", marginLeft: 6 }}>(shown once)</span>
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 6, lineHeight: 1.5 }}>
-                        Sign requests with this secret using HMAC-SHA256 and send the result in the <span style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>x-webhook-signature</span> header.
+                      <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
+                        Sign with HMAC-SHA256, send in the <span style={{ fontFamily: "monospace" }}>x-webhook-signature</span> header.
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div className="hook-url" style={{ color: "var(--purple)" }}>
@@ -464,9 +460,6 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                     background: "var(--bg-surface)",
                     border: "1px solid var(--border)",
                     borderRadius: 8,
-                    fontSize: 12,
-                    lineHeight: 1.55,
-                    color: "var(--text-muted)",
                     position: "relative",
                   }}
                 >
@@ -488,23 +481,13 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                       lineHeight: 1,
                       padding: 4,
                     }}
-                    aria-label="Dismiss getting started"
+                    aria-label="Dismiss"
                   >
                     ×
                   </button>
-                  <div style={{ fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                     Getting started
                   </div>
-                  <p style={{ marginBottom: 10 }}>
-                    <strong style={{ color: "var(--text)" }}>{WEBHOOK_ONELINER}</strong>{" "}
-                    {WEBHOOK_EXPLAINER_SHORT}
-                  </p>
-                  <ul style={{ margin: "0 0 12px 18px", padding: 0 }}>
-                    {REPLAY_TIPS.map((tip, i) => (
-                      <li key={i} style={{ marginBottom: 6 }}>{tip}</li>
-                    ))}
-                  </ul>
-                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 6 }}>Try replay to (test endpoints):</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                     {REPLAY_PRESETS.map((p) => (
                       <button
@@ -518,7 +501,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                           background: "var(--bg-raised)",
                           border: "1px solid var(--border-active)",
                           borderRadius: 6,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontFamily: "Inter, sans-serif",
                           color: "var(--text-secondary)",
                           cursor: "pointer",
@@ -528,13 +511,8 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                       </button>
                     ))}
                   </div>
-                  <div style={{ fontSize: 10, color: "var(--text-faint)" }}>
-                    Docs:{" "}
-                    <a href="https://httpbin.org/anything" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)" }}>httpbin.org/anything</a>
-                    {" · "}
-                    <a href="https://httpbin.org/get" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)" }}>/get</a>
-                    {" · "}
-                    <a href="https://httpbin.org/post" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)" }}>/post</a>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                    Replay uses the same method. Localhost is blocked — use a public URL or tunnel.
                   </div>
                 </div>
               )}
@@ -642,8 +620,8 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
 
                       <div className="replay-section">
                         <div className="detail-label" style={{ marginBottom: 12 }}>Replay</div>
-                        <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 8, lineHeight: 1.5 }}>
-                          Same method as this request ({detail.method}). Use a URL that accepts {detail.method}; localhost is blocked—use a public URL or a tunnel.
+                        <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5 }}>
+                          Same method as this request ({detail.method}). Localhost is blocked — use a public URL or tunnel.
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                           {REPLAY_PRESETS.map((p) => (
