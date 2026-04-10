@@ -158,8 +158,8 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .req-item { animation: fadeUp 0.25s ease forwards; }
-        .landing-page { background: var(--bg); color: var(--text); min-height: 100vh; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-        .mobile-block { display: none; background: var(--bg); color: var(--text); height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Inter', sans-serif; }
+        .landing-page { background: var(--bg); color: var(--text); min-height: 100vh; font-family: 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+        .mobile-block { display: none; background: var(--bg); color: var(--text); height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Inter', -apple-system, sans-serif; }
         .desktop-only { display: block; }
         @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
 
@@ -171,7 +171,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-hero-copy { flex: 0 0 360px; padding-top: 8px; }
         .l-h1 { font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; color: var(--text); margin-bottom: 16px; }
         .l-sub { font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 28px; }
-        .l-cta { height: 44px; padding: 0 20px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
+        .l-cta { height: 44px; padding: 0 20px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Inter', -apple-system, sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
         .l-cta:hover { background: var(--cta-hover); }
         .l-features { display: flex; flex-direction: column; gap: 18px; }
         .l-feature-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 2px; }
@@ -198,7 +198,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-replay-row { display: flex; gap: 6px; align-items: center; }
         .l-replay-input { flex: 1; height: 26px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font-size: 10px; font-family: monospace; color: var(--code-text); outline: none; min-width: 0; }
         .l-replay-input:focus { border-color: var(--border-strong); }
-        .l-replay-btn { height: 26px; padding: 0 10px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
+        .l-replay-btn { height: 26px; padding: 0 10px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Inter', -apple-system, sans-serif; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
         .l-replay-btn:hover { background: var(--cta-hover); }
         .l-replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .l-replay-result { margin-top: 8px; font-size: 10px; font-family: monospace; }
@@ -206,13 +206,13 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-webhook-intro-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
         .l-webhook-intro-body { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
         .l-preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 4px; align-items: center; }
-        .l-preset-chip { height: 24px; padding: 0 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: 'Inter', sans-serif; color: var(--text-muted); cursor: pointer; transition: border-color 0.12s, color 0.12s; }
+        .l-preset-chip { height: 24px; padding: 0 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: 'Inter', -apple-system, sans-serif; color: var(--text-muted); cursor: pointer; transition: border-color 0.12s, color 0.12s; }
         .l-preset-chip:hover { border-color: var(--border-strong); color: var(--text-secondary); }
         .l-replay-method-hint { font-size: 10px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
         .l-curl-box { margin-top: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
         .l-curl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .l-curl-label { font-size: 11px; color: var(--text-dim); }
-        .l-curl-copy { height: 22px; padding: 0 8px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; }
+        .l-curl-copy { height: 22px; padding: 0 8px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); font-size: 10px; font-family: 'Inter', -apple-system, sans-serif; cursor: pointer; transition: all 0.15s; }
         .l-curl-copy:hover { border-color: var(--border-strong); color: var(--text-secondary); }
         .l-curl-code { font-size: 11px; font-family: monospace; color: var(--text-muted); white-space: pre-wrap; line-height: 1.6; }
         .l-usecases { max-width: 1100px; margin: 0 auto; padding: 60px 32px 80px; border-top: 1px solid var(--bg-raised); }
@@ -235,8 +235,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         <nav className="l-nav">
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="l-nav-logo">Relay</span>
-            <span style={{ color: "var(--border-hover)" }}>·</span>
-            <a
+            <
               className="github-nav-link"
               href={GITHUB_PROFILE_URL}
               target="_blank"
