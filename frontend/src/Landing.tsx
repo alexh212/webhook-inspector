@@ -164,18 +164,18 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
 
         .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
-        .l-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
+        .l-nav-logo { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
         .l-nav-right { display: flex; align-items: center; gap: 8px; }
         .l-hero { max-width: 1100px; margin: 0 auto; padding: 80px 32px 60px; }
         .l-hero-inner { display: flex; align-items: flex-start; gap: 80px; }
         .l-hero-copy { flex: 0 0 360px; padding-top: 8px; }
         .l-h1 { font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; color: var(--text); margin-bottom: 16px; }
-        .l-sub { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 28px; }
-        .l-cta { height: 38px; padding: 0 20px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
+        .l-sub { font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 28px; }
+        .l-cta { height: 44px; padding: 0 20px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
         .l-cta:hover { background: var(--cta-hover); }
         .l-features { display: flex; flex-direction: column; gap: 18px; }
-        .l-feature-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 2px; }
-        .l-feature-desc { font-size: 11px; color: var(--text-faint); line-height: 1.6; }
+        .l-feature-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 2px; }
+        .l-feature-desc { font-size: 12px; color: var(--text-faint); line-height: 1.6; }
         .l-demo { flex: 1; min-width: 0; }
         .l-demo-window { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
         .l-demo-bar { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
@@ -203,8 +203,8 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .l-replay-result { margin-top: 8px; font-size: 10px; font-family: monospace; }
         .l-webhook-intro { margin-bottom: 28px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; }
-        .l-webhook-intro-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
-        .l-webhook-intro-body { font-size: 12px; color: var(--text-muted); line-height: 1.65; }
+        .l-webhook-intro-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .l-webhook-intro-body { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
         .l-preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 4px; align-items: center; }
         .l-preset-chip { height: 24px; padding: 0 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: 'Inter', sans-serif; color: var(--text-muted); cursor: pointer; transition: border-color 0.12s, color 0.12s; }
         .l-preset-chip:hover { border-color: var(--border-strong); color: var(--text-secondary); }
@@ -220,7 +220,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
         .l-usecases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--bg-raised); border: 1px solid var(--bg-raised); border-radius: 8px; overflow: hidden; }
         .l-usecase { background: var(--bg); padding: 24px; }
         .l-usecase-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
-        .l-usecase-desc { font-size: 12px; color: var(--text-faint); line-height: 1.6; }
+        .l-usecase-desc { font-size: 13px; color: var(--text-faint); line-height: 1.6; }
       `}</style>
 
       <div className="mobile-block">
@@ -233,7 +233,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
 
       <div className="desktop-only landing-page">
         <nav className="l-nav">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="l-nav-logo">Relay</span>
             <span style={{ color: "var(--border-hover)" }}>·</span>
             <a

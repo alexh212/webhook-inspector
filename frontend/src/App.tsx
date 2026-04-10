@@ -304,7 +304,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
   return (
     <div className="layout">
       <nav className="dashboard-nav">
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="dashboard-nav-logo">Relay</span>
           <span style={{ color: "var(--border-hover)" }}>·</span>
           <a
