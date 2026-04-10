@@ -1,4 +1,3 @@
-import logging
 import os
 
 from dotenv import load_dotenv
@@ -7,34 +6,21 @@ from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
 
-logger = logging.getLogger("webhookinspector")
-
-_engine = None
-_AsyncSessionLocal = None
-
-
-def _get_database_url() -> str:
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL environment variable is required")
-    return url
-
-
-def get_engine():
-    global _engine, _AsyncSessionLocal
-    if _engine is None:
-        debug = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
-        _engine = create_async_engine(_get_database_url(), echo=debug)
-        _AsyncSessionLocal = sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
-    return _engine
+_factory = None
 
 
 def get_session_factory():
-    get_engine()
-    return _AsyncSessionLocal
+    global _factory
+    if _factory is None:
+        url = os.getenv("DATABASE_URL")
+        if not url:
+            raise RuntimeError("DATABASE_URL environment variable is required")
+        debug = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
+        engine = create_async_engine(url, echo=debug)
+        _factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    return _factory
 
 
 async def get_db():
-    factory = get_session_factory()
-    async with factory() as session:
+    async with get_session_factory()() as session:
         yield session
