@@ -1,4 +1,3 @@
-/** Default replay destination: accepts any HTTP method (good for trying the feature). */
 export const DEFAULT_REPLAY_URL = "https://httpbin.org/anything";
 
 export const WEBHOOK_ONELINER =

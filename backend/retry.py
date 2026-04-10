@@ -40,7 +40,6 @@ MAX_RETRIES = 5
 
 
 def validate_destination_url(url: str) -> None:
-    """Raise ValueError if the URL targets a private/reserved IP or uses a bad scheme."""
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Unsupported scheme: {parsed.scheme}")
