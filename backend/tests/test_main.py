@@ -55,7 +55,6 @@ async def test_capture_webhook(client):
 
 
 async def test_capture_webhook_missing_signature_rejected(client):
-    """When endpoint has a secret, unsigned requests must be rejected."""
     ep = await client.post("/api/endpoints", json={"name": "HMAC Test"}, headers=HEADERS)
     ep_id = ep.json()["id"]
 
@@ -69,7 +68,6 @@ async def test_capture_webhook_missing_signature_rejected(client):
 
 
 async def test_capture_webhook_invalid_signature_rejected(client):
-    """An incorrect signature must be rejected."""
     ep = await client.post("/api/endpoints", json={"name": "Bad Sig Test"}, headers=HEADERS)
     ep_id = ep.json()["id"]
 
@@ -129,7 +127,6 @@ async def test_invalid_uuid_returns_400(client):
 
 
 async def test_replay_ssrf_blocked(client):
-    """Replay to private IP ranges must be rejected."""
     ep = await client.post("/api/endpoints", json={"name": "SSRF Test"}, headers=HEADERS)
     ep_data = ep.json()
     ep_id = ep_data["id"]
@@ -156,7 +153,6 @@ async def test_replay_ssrf_blocked(client):
 
 
 async def test_replay_invalid_url_rejected(client):
-    """Replay with non-http URLs must be rejected."""
     ep = await client.post("/api/endpoints", json={"name": "URL Test"}, headers=HEADERS)
     ep_data = ep.json()
     ep_id = ep_data["id"]
@@ -178,14 +174,12 @@ async def test_replay_invalid_url_rejected(client):
 
 
 async def test_endpoint_name_max_length(client):
-    """Endpoint name exceeding 255 chars should be rejected."""
     long_name = "a" * 300
     res = await client.post("/api/endpoints", json={"name": long_name}, headers=HEADERS)
     assert res.status_code == 422
 
 
 async def test_body_too_large_rejected(client):
-    """Webhook body exceeding 1MB should be rejected."""
     ep = await client.post("/api/endpoints", json={"name": "Size Test"}, headers=HEADERS)
     ep_data = ep.json()
     ep_id = ep_data["id"]
@@ -202,7 +196,6 @@ async def test_body_too_large_rejected(client):
 
 
 async def test_pagination(client):
-    """List endpoints respects limit and offset."""
     for i in range(3):
         await client.post("/api/endpoints", json={"name": f"Page {i}"}, headers=HEADERS)
 

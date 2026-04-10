@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+
 import { timeAgo, METHOD_COLOR, formatJson, isValidUrl, GITHUB_PROFILE_URL, type Theme } from "./utils";
 import {
   DEFAULT_REPLAY_URL,
