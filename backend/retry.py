@@ -38,6 +38,15 @@ BLOCKED_NETWORKS = [
 
 MAX_RETRIES = 5
 
+_HOP_BY_HOP = frozenset({
+    "connection", "content-length", "host", "keep-alive",
+    "te", "trailers", "transfer-encoding", "upgrade",
+})
+
+
+def sanitize_headers(headers: dict) -> dict:
+    return {k: v for k, v in headers.items() if k.lower() not in _HOP_BY_HOP}
+
 
 def validate_destination_url(url: str) -> None:
     parsed = urlparse(url)

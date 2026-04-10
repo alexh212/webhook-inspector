@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 
 from models import CapturedRequest, DeliveryAttempt
-from retry import enqueue_retry, validate_destination_url
+from retry import enqueue_retry, sanitize_headers, validate_destination_url
 
 load_dotenv()
 
@@ -50,9 +50,7 @@ async def process_job(job_data: str):
             logger.warning("Request %s not found, skipping retry", request_id)
             return
 
-        headers = dict(r.headers)
-        headers.pop("host", None)
-        headers.pop("content-length", None)
+        headers = sanitize_headers(r.headers)
 
         attempt = DeliveryAttempt(request_id=r.id, destination_url=destination_url)
         success = False

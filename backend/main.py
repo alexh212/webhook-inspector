@@ -23,7 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from database import get_db, get_session_factory
 from models import Endpoint, CapturedRequest, DeliveryAttempt
-from retry import enqueue_retry, validate_destination_url
+from retry import enqueue_retry, sanitize_headers, validate_destination_url
 
 load_dotenv()
 
@@ -305,9 +305,7 @@ async def replay_request(
     if not ep_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    headers = dict(r.headers)
-    headers.pop("host", None)
-    headers.pop("content-length", None)
+    headers = sanitize_headers(r.headers)
 
     payload = body.body_override if body.body_override is not None else r.body
     attempt = DeliveryAttempt(request_id=r.id, destination_url=body.destination_url)
