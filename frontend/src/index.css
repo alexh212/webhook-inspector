@@ -75,7 +75,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
 
 /* Layout */
 .layout { display: flex; height: 100vh; flex-direction: column; }
-.dashboard-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); flex-shrink: 0; }
+.dashboard-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 56px; width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); flex-shrink: 0; box-sizing: border-box; }
 .dashboard-nav-logo { font-size: 13px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
 .nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
 .nav-btn:hover { border-color: var(--border-strong); color: var(--text); }
