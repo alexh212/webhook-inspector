@@ -1,4 +1,4 @@
-# Webhook Inspector
+# Relay
  
 Full-stack developer tool for capturing, inspecting, and replaying webhook requests in real time.
  
@@ -53,7 +53,12 @@ cd backend && pytest tests/ -v
 ## Environment variables
  
 ```
+# backend (.env)
 DATABASE_URL=postgresql+asyncpg://localhost/webhookinspector
 REDIS_URL=redis://localhost:6379
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
+DEBUG=false                          # optional, enables SQLAlchemy query logging
+
+# frontend (.env)
+VITE_API_URL=http://localhost:8000   # optional, defaults to localhost:8000
 ```

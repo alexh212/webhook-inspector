@@ -85,6 +85,8 @@ async def process_job(job_data: str):
 async def retry_worker():
     logger.info("Retry worker started")
     while True:
+        # Pop up to 10 jobs at once. Jobs not yet due are re-inserted so other
+        # due jobs behind them in the set can still be processed this tick.
         results = await redis_client.zpopmin("retry_queue", count=10)
         for job_data, score in results:
             if score > time.time():

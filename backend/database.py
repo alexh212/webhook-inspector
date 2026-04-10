@@ -10,6 +10,7 @@ _factory = None
 
 
 def get_session_factory():
+    # Lazy init so test fixtures can override get_db before the engine is created.
     global _factory
     if _factory is None:
         url = os.getenv("DATABASE_URL")

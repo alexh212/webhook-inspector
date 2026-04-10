@@ -84,5 +84,7 @@ async def enqueue_retry(
         "destination_url": destination_url,
         "attempt_number": attempt_number,
     })
+    # Sorted set with a Unix timestamp score lets the worker pop jobs in schedule
+    # order with zpopmin — O(log n) insert, no polling overhead.
     await redis_client.zadd("retry_queue", {job: time.time() + delay})
     logger.info("Retry %d queued for request %s in %ds", attempt_number, request_id, delay)
