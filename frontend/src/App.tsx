@@ -304,7 +304,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
   return (
     <div className="layout">
       <nav className="dashboard-nav">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="nav-left">
           <span className="dashboard-nav-logo">Relay</span>
           <a
             className="github-nav-link"

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
 /* Theme variables */
@@ -71,7 +72,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
 
 /* Layout */
 .layout { display: flex; height: 100vh; flex-direction: column; }
@@ -79,7 +80,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-s
 .dashboard-nav-logo { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
 .nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
 .nav-btn:hover { border-color: var(--border-strong); color: var(--text); }
-.github-nav-link { display: inline-flex; align-items: center; gap: 7px; color: #888; text-decoration: none; font-size: 13px; font-weight: 400; transition: color 0.15s; }
+.nav-left { display: flex; align-items: center; gap: 12px; }
+.github-nav-link { display: inline-flex; align-items: center; gap: 7px; color: #888; text-decoration: none; font-size: 13px; transition: color 0.15s ease; }
 .github-nav-link:hover { color: #ededed; }
 .dashboard-body { display: flex; flex: 1; overflow: hidden; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
