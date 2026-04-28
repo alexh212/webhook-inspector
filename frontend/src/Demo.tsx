@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { API, timeAgo, METHOD_COLOR, formatJson, hmacSign } from "./utils";
+import { API, timeAgo, formatJson, hmacSign } from "./utils";
 
 const DEMO_SESSION = "demo-session-webhookinspector-public";
 
@@ -116,7 +116,7 @@ export default function Demo() {
                 className={`demo-req ${selected?.id === r.id ? "active" : ""}`}
                 onClick={() => selectRequest(r)}
               >
-                <span className="demo-method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
+                <span className={`method method-${r.method}`}>{r.method}</span>
                 <span className="demo-time">{timeAgo(r.received_at)}</span>
               </div>
             ))

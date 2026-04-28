@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { Endpoint, CapturedRequest, DeleteTarget } from "./types";
-import { API, SESSION_ID, timeAgo, METHOD_COLOR } from "./utils";
+import { API, SESSION_ID, timeAgo } from "./utils";
 
 interface Props {
   endpoint: Endpoint;
@@ -106,7 +106,7 @@ const RequestFeed = forwardRef<RequestFeedHandle, Props>(function RequestFeed(
             className={`req-row ${selectedId === r.id ? "active" : ""}`}
             onClick={() => onSelect(r.id)}
           >
-            <span className="method" style={{ color: METHOD_COLOR[r.method] || "#888" }}>{r.method}</span>
+            <span className={`method method-${r.method}`}>{r.method}</span>
             <span className="req-type">{r.content_type || "no content-type"}</span>
             <span className="req-time">{timeAgo(r.received_at)}</span>
             <span

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { RequestDetail, ReplayResult, DeliveryAttempt } from "./types";
-import { apiFetch, timeAgo, METHOD_COLOR, formatJson, isValidUrl } from "./utils";
+import { apiFetch, timeAgo, formatJson, isValidUrl } from "./utils";
 import { DEFAULT_REPLAY_URL, parseReplayError, REPLAY_405_HINT, REPLAY_PRESETS } from "./onboardingCopy";
 
 interface Props {
@@ -96,7 +96,7 @@ export default function DetailPane({ requestId, onError }: Props) {
             <div className="detail-meta-row">
               <div>
                 <div className="detail-label">Method</div>
-                <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
+                <span className={`method method-${detail.method}`}>{detail.method}</span>
               </div>
               <div>
                 <div className="detail-label">Source IP</div>

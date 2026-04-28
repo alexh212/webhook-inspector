@@ -6,13 +6,6 @@ export function timeAgo(date: string): string {
   return `${Math.floor(seconds / 3600)}h ago`;
 }
 
-export const METHOD_COLOR: Record<string, string> = {
-  GET: "#4ade80",
-  POST: "#60a5fa",
-  PUT: "#fb923c",
-  DELETE: "#f87171",
-  PATCH: "#c084fc",
-};
 
 export const GITHUB_PROFILE_URL = "https://github.com/alexh212";
 
