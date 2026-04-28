@@ -254,10 +254,22 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 
 /* Welcome state */
 .welcome-state { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; }
-.welcome-inner { max-width: 420px; width: 100%; }
+.welcome-inner { max-width: 540px; width: 100%; }
 .welcome-desc { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; }
-.welcome-cta { height: 36px; padding: 0 18px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 48px; display: block; }
+.welcome-cta { height: 36px; padding: 0 18px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 24px; display: block; }
 .welcome-cta:hover { background: var(--cta-hover); }
-.welcome-footer { font-size: 11px; color: var(--text-faint); line-height: 1.7; border-top: 1px solid var(--border); padding-top: 16px; }
-.welcome-footer a { color: var(--text-dim); text-decoration: none; }
-.welcome-footer a:hover { color: var(--text-muted); }
+
+/* Embedded demo */
+.demo-panel { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.demo-label { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--text-dim); background: var(--bg-surface); }
+.demo-body { display: flex; height: 220px; }
+.demo-feed { width: 160px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 6px; }
+.demo-feed-empty { font-size: 10px; color: var(--text-ghost); text-align: center; padding-top: 24px; }
+.demo-req { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; margin-bottom: 2px; transition: all 0.12s; }
+.demo-req:hover { background: var(--bg-raised); }
+.demo-req.active { background: var(--bg-raised); border-color: var(--border-hover); }
+.demo-method { font-size: 10px; font-weight: 600; font-family: monospace; min-width: 36px; }
+.demo-time { font-size: 10px; color: var(--text-faint); }
+.demo-detail { flex: 1; overflow-y: auto; padding: 10px; min-width: 0; }
+.demo-detail-empty { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-ghost); }
+.demo-body-pre { font-size: 10px; font-family: monospace; color: var(--code-text); white-space: pre-wrap; word-break: break-all; line-height: 1.6; }

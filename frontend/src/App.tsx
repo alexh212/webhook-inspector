@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 import { timeAgo, METHOD_COLOR, formatJson, isValidUrl, GITHUB_PROFILE_URL, type Theme } from "./utils";
+import Demo from "./Demo";
 import {
   DEFAULT_REPLAY_URL,
   parseReplayError,
@@ -402,13 +403,7 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
                   Inspect the full payload and replay it to any server.
                 </p>
                 <button className="welcome-cta" onClick={createEndpoint}>+ New endpoint</button>
-                <div className="welcome-footer">
-                  Open source · self-hostable · persistent history · HMAC signing · replay with body editing
-                  <br />
-                  Alternative to{" "}
-                  <a href="https://webhook.site" target="_blank" rel="noopener">webhook.site</a>
-                  {" "}and RequestBin — with full replay, named endpoints, and a retry queue.
-                </div>
+                <Demo />
               </div>
             </div>
           ) : (
