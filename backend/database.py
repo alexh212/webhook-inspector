@@ -18,6 +18,8 @@ def create_database_engine(echo: bool | None = None, poolclass=None):
     if echo is None:
         echo = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
     u = make_url(url)
+    if u.drivername in ("postgres", "postgresql", "postgresql+psycopg2", "postgresql+psycopg"):
+        u = u.set(drivername="postgresql+asyncpg")
     q = dict(u.query.items()) if u.query else {}
     sslmode = q.pop("sslmode", None)
     q.pop("channel_binding", None)
