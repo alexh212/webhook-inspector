@@ -48,6 +48,26 @@ export async function hmacSign(secret: string, body: string): Promise<string> {
     .join("");
 }
 
+export const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+export const SESSION_ID = (() => {
+  let id = localStorage.getItem("wi_session_id");
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem("wi_session_id", id); }
+  return id;
+})();
+
+export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const res = await fetch(`${API}${url}`, {
+    ...options,
+    headers: { ...(options.headers as Record<string, string>), "x-session-id": SESSION_ID },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Request failed (${res.status})`);
+  }
+  return res;
+}
+
 export type Theme = "dark" | "light";
 
 export function getStoredTheme(): Theme {

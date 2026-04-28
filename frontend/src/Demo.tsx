@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { timeAgo, METHOD_COLOR, formatJson, hmacSign } from "./utils";
+import { API, timeAgo, METHOD_COLOR, formatJson, hmacSign } from "./utils";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const DEMO_SESSION = "demo-session-webhookinspector-public";
 
 const DEMO_PAYLOADS = [
