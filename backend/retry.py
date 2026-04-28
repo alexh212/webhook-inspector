@@ -5,6 +5,7 @@ import socket
 import logging
 from urllib.parse import urlparse
 
+import httpx
 import redis.asyncio as aioredis
 
 logger = logging.getLogger("webhookinspector")
@@ -67,6 +68,39 @@ def validate_destination_url(url: str) -> None:
         for network in BLOCKED_NETWORKS:
             if ip in network:
                 raise ValueError(f"Destination resolves to blocked address: {ip}")
+
+
+async def do_replay(
+    method: str,
+    url: str,
+    headers: dict,
+    body: str | None,
+) -> dict:
+    """Execute one HTTP replay. Returns status_code, response_headers, response_body, duration_ms, error."""
+    start = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.request(
+                method=method,
+                url=url,
+                headers=headers,
+                content=body.encode() if body else b"",
+            )
+        return {
+            "status_code": str(response.status_code),
+            "response_headers": dict(response.headers),
+            "response_body": response.text,
+            "duration_ms": str(round((time.time() - start) * 1000)),
+            "error": None,
+        }
+    except Exception as e:
+        return {
+            "status_code": None,
+            "response_headers": {},
+            "response_body": None,
+            "duration_ms": None,
+            "error": str(e),
+        }
 
 
 async def enqueue_retry(

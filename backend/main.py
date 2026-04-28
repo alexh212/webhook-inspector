@@ -4,11 +4,9 @@ import json
 import logging
 import os
 import secrets
-import time
 import uuid
 from typing import Optional
 
-import httpx
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect, Header
@@ -23,7 +21,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from database import get_db, get_session_factory
 from models import Endpoint, CapturedRequest, DeliveryAttempt
-from retry import enqueue_retry, sanitize_headers, validate_destination_url
+from retry import do_replay, enqueue_retry, sanitize_headers, validate_destination_url
 
 load_dotenv()
 
@@ -293,8 +291,8 @@ async def replay_request(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == req_uuid))
-    r = result.scalar_one_or_none()
+    db_result = await db.execute(select(CapturedRequest).where(CapturedRequest.id == req_uuid))
+    r = db_result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=404, detail="Request not found")
 
@@ -306,28 +304,20 @@ async def replay_request(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     headers = sanitize_headers(r.headers)
-
     payload = body.body_override if body.body_override is not None else r.body
     attempt = DeliveryAttempt(request_id=r.id, destination_url=body.destination_url)
 
-    start = time.time()
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.request(
-                method=r.method,
-                url=body.destination_url,
-                headers=headers,
-                content=payload.encode() if payload else b"",
-            )
-        attempt.status_code = str(response.status_code)
-        attempt.response_headers = dict(response.headers)
-        attempt.response_body = response.text
-        attempt.duration_ms = str(round((time.time() - start) * 1000))
-        if response.status_code >= 500:
-            await enqueue_retry(redis_client, str(r.id), body.destination_url, 1)
-    except Exception as e:
-        attempt.error = str(e)
-        logger.warning("Replay failed for request %s: %s", request_id, e)
+    result = await do_replay(r.method, body.destination_url, headers, payload)
+    attempt.status_code = result["status_code"]
+    attempt.response_headers = result["response_headers"]
+    attempt.response_body = result["response_body"]
+    attempt.duration_ms = result["duration_ms"]
+    attempt.error = result["error"]
+
+    if result["error"]:
+        logger.warning("Replay failed for request %s: %s", request_id, result["error"])
+        await enqueue_retry(redis_client, str(r.id), body.destination_url, 1)
+    elif result["status_code"] and int(result["status_code"]) >= 500:
         await enqueue_retry(redis_client, str(r.id), body.destination_url, 1)
 
     db.add(attempt)

@@ -1,19 +1,5 @@
 export const DEFAULT_REPLAY_URL = "https://httpbin.org/anything";
 
-export const WEBHOOK_ONELINER =
-  "A webhook is an HTTP request a service sends to your URL when something happens.";
-
-export const WEBHOOK_EXPLAINER_SHORT =
-  "Point Stripe, GitHub, or any provider at your hook URL below. Relay captures each request so you can inspect headers and body, then replay it to another server for testing.";
-
-export const WEBHOOK_EXPLAINER =
-  "When an external service has an event for you—payment succeeded, repo pushed, form submitted—it sends an HTTP request to a URL you configure. Relay gives you that URL, stores every delivery, and lets you forward (replay) a copy elsewhere for debugging.";
-
-export const REPLAY_TIPS: string[] = [
-  "Replay uses the same HTTP method as the captured request (GET stays GET, POST stays POST). Pick a destination that allows that method.",
-  "Do not use localhost as the replay URL—Relay blocks private addresses for security. Use a public URL, or expose your machine with a tunnel (ngrok, Cloudflare Tunnel) and paste that HTTPS URL.",
-];
-
 export type ReplayPreset = { label: string; url: string; hint?: string };
 
 export const REPLAY_PRESETS: ReplayPreset[] = [

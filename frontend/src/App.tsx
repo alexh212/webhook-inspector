@@ -43,7 +43,7 @@ type RequestDetail = {
 type ReplayResult = { status_code: string; response_body: string; duration_ms: string; error: string | null };
 type DeliveryAttempt = { id: string; destination_url: string; status_code: string | null; duration_ms: string | null; error: string | null; attempted_at: string };
 
-export default function App({ onBack, theme, toggleTheme }: { onBack: () => void; theme: Theme; toggleTheme: () => void }) {
+export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme: () => void }) {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [selected, setSelected] = useState<Endpoint | null>(null);
   const [requests, setRequests] = useState<CapturedRequest[]>([]);
@@ -324,7 +324,6 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
           <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
             {theme === "dark" ? "☀" : "☾"}
           </button>
-          <button className="nav-btn" onClick={onBack}>← Home</button>
         </div>
       </nav>
 
@@ -396,9 +395,21 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
 
         <div className="main">
           {!selected ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">↪</div>
-              <div className="empty-state-text">Create or select an endpoint</div>
+            <div className="welcome-state">
+              <div className="welcome-inner">
+                <p className="welcome-desc">
+                  Relay captures every HTTP request sent to your endpoint — headers, body, query params — in real time.
+                  Inspect the full payload and replay it to any server.
+                </p>
+                <button className="welcome-cta" onClick={createEndpoint}>+ New endpoint</button>
+                <div className="welcome-footer">
+                  Open source · self-hostable · persistent history · HMAC signing · replay with body editing
+                  <br />
+                  Alternative to{" "}
+                  <a href="https://webhook.site" target="_blank" rel="noopener">webhook.site</a>
+                  {" "}and RequestBin — with full replay, named endpoints, and a retry queue.
+                </div>
+              </div>
             </div>
           ) : (
             <>

@@ -7,13 +7,12 @@ import uuid
 
 from dotenv import load_dotenv
 import redis.asyncio as aioredis
-import httpx
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 
 from models import CapturedRequest, DeliveryAttempt
-from retry import enqueue_retry, sanitize_headers, validate_destination_url
+from retry import do_replay, enqueue_retry, sanitize_headers, validate_destination_url
 
 load_dotenv()
 
@@ -42,38 +41,29 @@ async def process_job(job_data: str):
         return
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
+        query = await db.execute(
             select(CapturedRequest).where(CapturedRequest.id == uuid.UUID(request_id))
         )
-        r = result.scalar_one_or_none()
+        r = query.scalar_one_or_none()
         if not r:
             logger.warning("Request %s not found, skipping retry", request_id)
             return
 
         headers = sanitize_headers(r.headers)
-
         attempt = DeliveryAttempt(request_id=r.id, destination_url=destination_url)
-        success = False
 
-        try:
-            start = time.time()
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.request(
-                    method=r.method,
-                    url=destination_url,
-                    headers=headers,
-                    content=r.body.encode() if r.body else b"",
-                )
-            attempt.status_code = str(response.status_code)
-            attempt.response_headers = dict(response.headers)
-            attempt.response_body = response.text
-            attempt.duration_ms = str(round((time.time() - start) * 1000))
-            success = response.status_code < 500
-            logger.info("Attempt %d for %s -> %d", attempt_number, request_id, response.status_code)
+        result = await do_replay(r.method, destination_url, headers, r.body)
+        attempt.status_code = result["status_code"]
+        attempt.response_headers = result["response_headers"]
+        attempt.response_body = result["response_body"]
+        attempt.duration_ms = result["duration_ms"]
+        attempt.error = result["error"]
+        success = not result["error"] and result["status_code"] is not None and int(result["status_code"]) < 500
 
-        except Exception as e:
-            attempt.error = str(e)
-            logger.warning("Attempt %d for %s errored: %s", attempt_number, request_id, e)
+        if result["error"]:
+            logger.warning("Attempt %d for %s errored: %s", attempt_number, request_id, result["error"])
+        elif result["status_code"]:
+            logger.info("Attempt %d for %s -> %s", attempt_number, request_id, result["status_code"])
 
         db.add(attempt)
         await db.commit()

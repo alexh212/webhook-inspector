@@ -266,7 +266,7 @@ def _mock_httpx_client(status_code: int = 200, body: str = "ok"):
 
 async def test_replay_success(client):
     _, req_id = await _capture(client, "Replay Success Test")
-    with patch("main.httpx.AsyncClient", return_value=_mock_httpx_client(200, '{"ok": true}')):
+    with patch("retry.httpx.AsyncClient", return_value=_mock_httpx_client(200, '{"ok": true}')):
         res = await client.post(
             f"/api/requests/{req_id}/replay",
             json={"destination_url": "https://httpbin.org/anything"},
@@ -281,7 +281,7 @@ async def test_replay_success(client):
 
 async def test_list_attempts_after_replay(client):
     _, req_id = await _capture(client, "Attempts Test")
-    with patch("main.httpx.AsyncClient", return_value=_mock_httpx_client(200)):
+    with patch("retry.httpx.AsyncClient", return_value=_mock_httpx_client(200)):
         await client.post(
             f"/api/requests/{req_id}/replay",
             json={"destination_url": "https://httpbin.org/anything"},
