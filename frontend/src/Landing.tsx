@@ -150,83 +150,15 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
   };
 
   const curlCommand = endpointId
-    ? `curl -X POST ${API}/hooks/${endpointId} \\\n  -H "Content-Type: application/json" \\\n  -H "x-webhook-signature: <hmac-sha256-hex>" \\\n  -d '{"event": "test", "from": "you"}'`
+    ? `curl -X POST ${API}/hooks/${endpointId} \\\n  -H "Content-Type: application/json" \\\n  -d '{"event": "test"}'`
     : "";
 
   return (
     <>
-      <style>{`
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .req-item { animation: fadeUp 0.25s ease forwards; }
-        .landing-page { background: var(--bg); color: var(--text); min-height: 100vh; font-family: 'Geist', 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-        .mobile-block { display: none; background: var(--bg); color: var(--text); height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; font-family: 'Geist', 'Inter', -apple-system, sans-serif; }
-        .desktop-only { display: block; }
-        @media (max-width: 768px) { .mobile-block { display: flex !important; } .desktop-only { display: none !important; } }
-
-        .l-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); }
-        .l-nav-logo { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
-        .l-nav-right { display: flex; align-items: center; gap: 8px; }
-        .l-hero { max-width: 1100px; margin: 0 auto; padding: 80px 32px 60px; }
-        .l-hero-inner { display: flex; align-items: flex-start; gap: 80px; }
-        .l-hero-copy { flex: 0 0 360px; padding-top: 8px; }
-        .l-h1 { font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; color: var(--text); margin-bottom: 16px; }
-        .l-sub { font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 28px; }
-        .l-cta { height: 44px; padding: 0 20px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Geist', 'Inter', -apple-system, sans-serif; cursor: pointer; transition: background 0.15s; margin-bottom: 44px; }
-        .l-cta:hover { background: var(--cta-hover); }
-        .l-features { display: flex; flex-direction: column; gap: 18px; }
-        .l-feature-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 2px; }
-        .l-feature-desc { font-size: 12px; color: var(--text-faint); line-height: 1.6; }
-        .l-demo { flex: 1; min-width: 0; }
-        .l-demo-window { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-        .l-demo-bar { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-        .l-demo-body { display: flex; height: 380px; }
-        .l-feed { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .l-feed-header { padding: 10px 12px 8px; font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--bg-raised); }
-        .l-feed-list { flex: 1; overflow-y: auto; padding: 8px; }
-        .l-req { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 2px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
-        .l-req:hover { background: var(--bg-raised); }
-        .l-req.active { background: var(--bg-raised); border-color: var(--border-hover); }
-        .l-method { font-size: 10px; font-weight: 600; font-family: monospace; min-width: 30px; }
-        .l-time { font-size: 10px; color: var(--text-faint); }
-        .l-detail { flex: 1; overflow-y: auto; padding: 14px; min-width: 0; }
-        .l-detail-empty { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-ghost); }
-        .l-meta-row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
-        .l-meta-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; color: var(--text-faint); }
-        .l-meta-val { font-size: 11px; font-family: monospace; color: var(--text); }
-        .l-section-label { font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-        .l-body-block { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-size: 10px; font-family: monospace; color: var(--code-text); white-space: pre-wrap; line-height: 1.6; max-height: 100px; overflow-y: auto; margin-bottom: 12px; }
-        .l-replay-row { display: flex; gap: 6px; align-items: center; }
-        .l-replay-input { flex: 1; height: 26px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font-size: 10px; font-family: monospace; color: var(--code-text); outline: none; min-width: 0; }
-        .l-replay-input:focus { border-color: var(--border-strong); }
-        .l-replay-btn { height: 26px; padding: 0 10px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist', 'Inter', -apple-system, sans-serif; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
-        .l-replay-btn:hover { background: var(--cta-hover); }
-        .l-replay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .l-replay-result { margin-top: 8px; font-size: 10px; font-family: monospace; }
-        .l-webhook-intro { margin-bottom: 28px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; }
-        .l-webhook-intro-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
-        .l-webhook-intro-body { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
-        .l-preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 4px; align-items: center; }
-        .l-preset-chip { height: 24px; padding: 0 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: 'Geist', 'Inter', -apple-system, sans-serif; color: var(--text-muted); cursor: pointer; transition: border-color 0.12s, color 0.12s; }
-        .l-preset-chip:hover { border-color: var(--border-strong); color: var(--text-secondary); }
-        .l-replay-method-hint { font-size: 10px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
-        .l-curl-box { margin-top: 10px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-        .l-curl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-        .l-curl-label { font-size: 11px; color: var(--text-dim); }
-        .l-curl-copy { height: 22px; padding: 0 8px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); font-size: 10px; font-family: 'Geist', 'Inter', -apple-system, sans-serif; cursor: pointer; transition: all 0.15s; }
-        .l-curl-copy:hover { border-color: var(--border-strong); color: var(--text-secondary); }
-        .l-curl-code { font-size: 11px; font-family: monospace; color: var(--text-muted); white-space: pre-wrap; line-height: 1.6; }
-        .l-usecases { max-width: 1100px; margin: 0 auto; padding: 60px 32px 80px; border-top: 1px solid var(--bg-raised); }
-        .l-usecases-title { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 32px; }
-        .l-usecases-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--bg-raised); border: 1px solid var(--bg-raised); border-radius: 8px; overflow: hidden; }
-        .l-usecase { background: var(--bg); padding: 24px; }
-        .l-usecase-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
-        .l-usecase-desc { font-size: 13px; color: var(--text-faint); line-height: 1.6; }
-      `}</style>
-
       <div className="mobile-block">
-        <div style={{ fontSize: 28, marginBottom: 16 }}>↪</div>
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Relay</div>
-        <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
+        <div className="mobile-icon">↪</div>
+        <div className="mobile-title">Relay</div>
+        <div className="mobile-desc">
           This tool is designed for desktop. Open it on a larger screen to see the live demo and dashboard.
         </div>
       </div>
@@ -265,10 +197,10 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
               <p className="l-sub">Point any webhook at your endpoint. See every request instantly, inspect the full payload, and replay it to your server whenever you need.</p>
               <div className="l-webhook-intro">
                 <div className="l-webhook-intro-title">What&apos;s a webhook?</div>
-                <div className="l-webhook-intro-body">
-                  <strong style={{ color: "var(--text-secondary)" }}>{WEBHOOK_ONELINER}</strong>{" "}
-                  {WEBHOOK_EXPLAINER}
-                </div>
+                        <div className="l-webhook-intro-body">
+                          <strong className="l-webhook-intro-strong">{WEBHOOK_ONELINER}</strong>{" "}
+                          {WEBHOOK_EXPLAINER}
+                        </div>
               </div>
               <button className="l-cta" onClick={onEnter}>Get started →</button>
               <div className="l-features">
@@ -288,8 +220,8 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
             <div className="l-demo">
               <div className="l-demo-window">
                 <div className="l-demo-bar">
-                  <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span style={{ color: status === "live" ? "var(--success)" : "var(--text-muted)" }}>● live</span>
+                  <span className="l-demo-count">
+                    {requests.length} request{requests.length !== 1 ? "s" : ""} — <span className={status === "live" ? "ws-live" : "ws-offline"}>● live</span>
                   </span>
                 </div>
 
@@ -298,7 +230,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                     <div className="l-feed-header">Incoming requests</div>
                     <div className="l-feed-list">
                       {requests.length === 0 && (
-                        <div style={{ fontSize: 10, color: "var(--text-ghost)", textAlign: "center", marginTop: 32 }}>
+                        <div className="l-feed-connecting">
                           {status === "connecting" ? "Connecting..." : "Starting..."}
                         </div>
                       )}
@@ -373,23 +305,19 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                         {replayResult && (
                           <div className="l-replay-result">
                             {replayResult.error ? (
-                              <span style={{ color: "var(--error)" }}>Error: {replayResult.error}</span>
+                              <span className="replay-error-text">Error: {replayResult.error}</span>
                             ) : (
                               <>
-                                <span style={{ color: parseInt(replayResult.status_code) < 400 ? "var(--success)" : "var(--error)" }}>
+                                <span className={parseInt(replayResult.status_code) < 400 ? "status-ok" : "status-bad"}>
                                   {replayResult.status_code} · {replayResult.duration_ms}ms
                                 </span>
                                 {replayResult.status_code === "405" && (
-                                  <div className="l-replay-method-hint" style={{ marginTop: 6, color: "var(--text-muted)" }}>
+                                  <div className="l-replay-method-hint">
                                     {REPLAY_405_HINT}
                                   </div>
                                 )}
                                 {replayResult.response_body && (
-                                  <div style={{
-                                    marginTop: 6, background: "var(--bg-raised)", border: "1px solid var(--border)",
-                                    borderRadius: 4, padding: "8px 10px", fontSize: 10, fontFamily: "monospace",
-                                    color: "var(--text-muted)", whiteSpace: "pre-wrap" as const, maxHeight: 100, overflowY: "auto" as const
-                                  }}>
+                                  <div className="l-replay-response-body">
                                     {(() => { try { return JSON.stringify(JSON.parse(replayResult.response_body), null, 2); } catch { return replayResult.response_body; } })()}
                                   </div>
                                 )}
@@ -406,7 +334,7 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
               {endpointId && (
                 <div className="l-curl-box">
                   <div className="l-curl-header">
-                    <span className="l-curl-label">Fire your own request at this live endpoint:</span>
+                    <span className="l-curl-label">Try it — fire a request at this live endpoint:</span>
                     <button className="l-curl-copy" onClick={() => { navigator.clipboard.writeText(curlCommand); setCurlCopied(true); setTimeout(() => setCurlCopied(false), 2000); }}>
                       {curlCopied ? "✓ copied" : "copy"}
                     </button>
@@ -415,6 +343,23 @@ export default function Landing({ onEnter, theme, toggleTheme }: { onEnter: () =
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="l-how">
+          <div className="l-how-title">How it works</div>
+          <div className="l-how-steps">
+            {[
+              { num: "01", title: "Create an endpoint", desc: "Relay gives you a unique public URL — no account, no login required." },
+              { num: "02", title: "Point your webhook at it", desc: "Configure Stripe, GitHub, Shopify, or any service to send events to your URL." },
+              { num: "03", title: "Inspect and replay", desc: "Every request appears instantly. See full headers, body, and query params. Replay to your server whenever you need." },
+            ].map(s => (
+              <div key={s.num} className="l-how-step">
+                <div className="l-how-step-num">{s.num}</div>
+                <div className="l-how-step-title">{s.title}</div>
+                <div className="l-how-step-desc">{s.desc}</div>
+              </div>
+            ))}
           </div>
         </div>
 

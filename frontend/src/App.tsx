@@ -65,9 +65,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [wsStatus, setWsStatus] = useState<"disconnected" | "connected" | "reconnecting">("disconnected");
   const [confirmDelete, setConfirmDelete] = useState<{ type: "endpoint" | "request"; id: string } | null>(null);
-  const [gettingStartedDismissed, setGettingStartedDismissed] = useState(
-    () => typeof localStorage !== "undefined" && localStorage.getItem("wi_dismiss_getting_started") === "1"
-  );
+  const [detailTab, setDetailTab] = useState<"overview" | "headers" | "replay" | "history">("overview");
   const isResizingSidebar = useRef(false);
   const isResizingFeed = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -208,6 +206,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
       const res = await apiFetch(`/api/requests/${id}`);
       const data = await res.json();
       setDetail(data);
+      setDetailTab("overview");
       setReplayBody(data.body);
       setReplayResult(null);
       setAttempts([]);
@@ -321,7 +320,7 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
             </svg>
           </a>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="nav-right">
           <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
             {theme === "dark" ? "☀" : "☾"}
           </button>
@@ -330,38 +329,22 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
       </nav>
 
       {error && (
-        <div style={{
-          position: "fixed", top: 56, left: "50%", transform: "translateX(-50%)", zIndex: 1000,
-          background: "var(--error-bg)", border: "1px solid var(--error-border)", borderRadius: 8, padding: "10px 20px",
-          color: "var(--error)", fontSize: 12, fontFamily: "Inter, sans-serif", maxWidth: 500,
-        }}>
+        <div className="error-toast">
           {error}
-          <span onClick={() => setError(null)} style={{ marginLeft: 12, cursor: "pointer", color: "var(--text-muted)" }}>×</span>
+          <span className="error-toast-close" onClick={() => setError(null)}>×</span>
         </div>
       )}
 
       {confirmDelete && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 1000,
-          background: "var(--modal-overlay)", display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div style={{
-            background: "var(--modal-bg)", border: "1px solid var(--border-active)", borderRadius: 10, padding: "24px 28px",
-            maxWidth: 360, fontFamily: "Inter, sans-serif",
-          }}>
-            <div style={{ fontSize: 14, color: "var(--text)", marginBottom: 6 }}>Confirm delete</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.5 }}>
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-title">Confirm delete</div>
+            <div className="modal-body">
               Are you sure you want to delete this {confirmDelete.type}? This action cannot be undone.
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setConfirmDelete(null)}
-                style={{ height: 30, padding: "0 14px", background: "transparent", border: "1px solid var(--border-active)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer" }}
-              >Cancel</button>
-              <button
-                onClick={executeDelete}
-                style={{ height: 30, padding: "0 14px", background: "var(--error)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, fontFamily: "Inter, sans-serif", cursor: "pointer" }}
-              >Delete</button>
+            <div className="modal-actions">
+              <button className="modal-cancel" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="modal-delete" onClick={executeDelete}>Delete</button>
             </div>
           </div>
         </div>
@@ -384,20 +367,18 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
           </div>
           <div className="ep-list">
             {loadingEndpoints && (
-              <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "8px 10px" }}>Loading...</div>
+              <div className="ep-list-loading">Loading...</div>
             )}
             {!loadingEndpoints && endpoints.length === 0 && (
-              <div style={{ fontSize: 11, color: "var(--text-ghost)", padding: "8px 10px" }}>No endpoints yet</div>
+              <div className="ep-list-empty">No endpoints yet</div>
             )}
             {endpoints.map(ep => (
               <div key={ep.id} className={`ep-item ${selected?.id === ep.id ? "active" : ""}`} onClick={() => setSelected(ep)}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="ep-item-row">
                   <div className="ep-name">{ep.name}</div>
                   <span
+                    className="item-delete"
                     onClick={e => { e.stopPropagation(); setConfirmDelete({ type: "endpoint", id: ep.id }); }}
-                    style={{ color: "var(--text-faint)", fontSize: 14, cursor: "pointer", padding: "0 2px" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "var(--error)")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "var(--text-faint)")}
                   >×</span>
                 </div>
               </div>
@@ -422,26 +403,20 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
           ) : (
             <>
               <div className="main-header">
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="header-left">
                   <div className="hook-label">Hook URL</div>
                   <div className="hook-url">{hookUrl}</div>
                   {selected && secrets[selected.id] && (
-                    <div style={{ marginTop: 10 }}>
+                    <div className="secret-section">
                       <div className="hook-label">
-                        Signing Secret
-                        <span style={{ color: "var(--text-ghost)", marginLeft: 6 }}>(shown once)</span>
+                        Signing Secret<span className="hook-label-note">(shown once)</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
-                        Sign with HMAC-SHA256, send in the <span style={{ fontFamily: "monospace" }}>x-webhook-signature</span> header.
+                      <div className="secret-hint">
+                        Sign with HMAC-SHA256, send in the <code>x-webhook-signature</code> header.
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div className="hook-url" style={{ color: "var(--purple)" }}>
-                          {secrets[selected.id]}
-                        </div>
-                        <button
-                          onClick={copySecret}
-                          style={{ height: 22, padding: "0 8px", background: "transparent", border: "1px solid var(--border-active)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, fontFamily: "Inter, sans-serif", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
-                        >
+                      <div className="secret-row">
+                        <div className="hook-url secret-value">{secrets[selected.id]}</div>
+                        <button className="secret-copy-btn" onClick={copySecret}>
                           {secretCopied ? "✓" : "copy"}
                         </button>
                       </div>
@@ -451,83 +426,23 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                 <button className="copy-btn" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
               </div>
 
-              {selected && !gettingStartedDismissed && (
-                <div
-                  style={{
-                    margin: "0 22px 12px",
-                    padding: "12px 14px",
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    position: "relative",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      localStorage.setItem("wi_dismiss_getting_started", "1");
-                      setGettingStartedDismissed(true);
-                    }}
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 10,
-                      background: "transparent",
-                      border: "none",
-                      color: "var(--text-faint)",
-                      cursor: "pointer",
-                      fontSize: 16,
-                      lineHeight: 1,
-                      padding: 4,
-                    }}
-                    aria-label="Dismiss"
-                  >
-                    ×
-                  </button>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Getting started
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                    {REPLAY_PRESETS.map((p) => (
-                      <button
-                        key={p.url}
-                        type="button"
-                        onClick={() => setReplayUrl(p.url)}
-                        title={p.hint}
-                        style={{
-                          height: 26,
-                          padding: "0 10px",
-                          background: "var(--bg-raised)",
-                          border: "1px solid var(--border-active)",
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontFamily: "Inter, sans-serif",
-                          color: "var(--text-secondary)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5 }}>
-                    Replay uses the same method. Localhost is blocked — use a public URL or tunnel.
-                  </div>
-                </div>
-              )}
-
               <div className="content-area">
                 <div className="feed" style={{ width: feedWidth }}>
                   <div className="feed-meta">
                     {requests.length} request{requests.length !== 1 ? "s" : ""} —{" "}
-                    <span style={{ color: wsStatus === "connected" ? "var(--success)" : wsStatus === "reconnecting" ? "var(--warning)" : "var(--text-muted)" }}>
+                    <span className={wsStatus === "connected" ? "ws-live" : wsStatus === "reconnecting" ? "ws-reconnecting" : "ws-offline"}>
                       ● {wsStatus === "connected" ? "live" : wsStatus === "reconnecting" ? "reconnecting" : "offline"}
                     </span>
                   </div>
                   {loadingRequests ? (
                     <div className="empty">Loading requests...</div>
                   ) : requests.length === 0 ? (
-                    <div className="empty">No requests yet. Fire a curl at the URL above.</div>
+                    <div className="feed-empty-state">
+                      <div className="feed-empty-label">Waiting for requests...</div>
+                      <code className="feed-empty-url">{hookUrl}</code>
+                      <button className="feed-empty-copy" onClick={copyUrl}>{copied ? "✓ Copied" : "Copy URL"}</button>
+                      <pre className="feed-empty-curl">{`curl -X POST ${hookUrl} \\\n  -H "Content-Type: application/json" \\\n  -d '{"event": "test"}'`}</pre>
+                    </div>
                   ) : (
                     requests.map(r => (
                       <div
@@ -539,10 +454,8 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                         <span className="req-type">{r.content_type || "no content-type"}</span>
                         <span className="req-time">{timeAgo(r.received_at)}</span>
                         <span
+                          className="item-delete"
                           onClick={e => { e.stopPropagation(); setConfirmDelete({ type: "request", id: r.id }); }}
-                          style={{ color: "var(--text-ghost)", fontSize: 14, cursor: "pointer", marginLeft: 4 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = "var(--error)")}
-                          onMouseLeave={e => (e.currentTarget.style.color = "var(--text-ghost)")}
                         >×</span>
                       </div>
                     ))
@@ -550,163 +463,155 @@ export default function App({ onBack, theme, toggleTheme }: { onBack: () => void
                 </div>
 
                 <div
-                  style={{ width: 4, cursor: "col-resize", flexShrink: 0, background: "transparent", borderRight: "1px solid var(--bg-raised)" }}
+                  className="feed-resize"
                   onMouseDown={() => {
                     isResizingFeed.current = true;
                     document.body.style.cursor = "col-resize";
                     document.body.style.userSelect = "none";
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "var(--resize-hover)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 />
 
                 <div className="detail">
                   {loadingDetail ? (
                     <div className="detail-empty">Loading...</div>
                   ) : !detail ? (
-                    <div className="detail-empty">← Select a request to inspect</div>
+                    <div className="detail-empty">Select a request to inspect</div>
                   ) : (
                     <>
-                      <div className="detail-meta-row">
-                        <div>
-                          <div className="detail-label">Method</div>
-                          <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
-                        </div>
-                        <div>
-                          <div className="detail-label">Source IP</div>
-                          <div className="detail-meta-val">{detail.source_ip}</div>
-                        </div>
-                        <div>
-                          <div className="detail-label">Received</div>
-                          <div className="detail-meta-val">{timeAgo(detail.received_at)}</div>
-                        </div>
-                        <div>
-                          <div className="detail-label">Content-Type</div>
-                          <div className="detail-meta-val">{detail.content_type || "—"}</div>
-                        </div>
-                      </div>
-
-                      {detail.body && (
-                        <div className="detail-section">
-                          <div className="detail-label">Body</div>
-                          <div className="body-block">{formatJson(detail.body)}</div>
-                        </div>
-                      )}
-
-                      {Object.keys(detail.query_params || {}).length > 0 && (
-                        <div className="detail-section">
-                          <div className="detail-label">Query Params</div>
-                          <table className="kv-table">
-                            <tbody>
-                            {Object.entries(detail.query_params).map(([k, v]) => (
-                              <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
-                            ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      <div className="detail-section">
-                        <div className="detail-label">Headers</div>
-                        <table className="kv-table">
-                          <tbody>
-                          {Object.entries(detail.headers).map(([k, v]) => (
-                            <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
-                          ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="replay-section">
-                        <div className="detail-label" style={{ marginBottom: 12 }}>Replay</div>
-                        <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5 }}>
-                          Same method as this request ({detail.method}). Localhost is blocked — use a public URL or tunnel.
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                          {REPLAY_PRESETS.map((p) => (
-                            <button
-                              key={p.url}
-                              type="button"
-                              onClick={() => setReplayUrl(p.url)}
-                              title={p.hint}
-                              style={{
-                                height: 24,
-                                padding: "0 8px",
-                                background: "var(--bg-raised)",
-                                border: "1px solid var(--border-active)",
-                                borderRadius: 4,
-                                fontSize: 10,
-                                fontFamily: "Inter, sans-serif",
-                                color: "var(--text-muted)",
-                                cursor: "pointer",
-                              }}
-                            >
-                              {p.label}
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          className="replay-input"
-                          value={replayUrl}
-                          onChange={e => setReplayUrl(e.target.value)}
-                          placeholder="Destination URL"
-                          style={!replayUrlValid && replayUrl ? { borderColor: "var(--error)" } : {}}
-                        />
-                        {!replayUrlValid && replayUrl && (
-                          <div style={{ fontSize: 10, color: "var(--error)", marginBottom: 6, marginTop: -4 }}>
-                            Enter a valid http:// or https:// URL
-                          </div>
-                        )}
-                        <textarea
-                          className="replay-textarea"
-                          value={replayBody || ""}
-                          onChange={e => setReplayBody(e.target.value)}
-                          placeholder="Request body (edit before replaying)"
-                        />
-                        <button className="replay-btn" onClick={replay} disabled={replaying || !replayUrlValid}>
-                          {replaying ? "Sending..." : "↩ Replay"}
+                      <div className="detail-tabs-bar">
+                        <button className={`detail-tab ${detailTab === "overview" ? "active" : ""}`} onClick={() => setDetailTab("overview")}>Overview</button>
+                        <button className={`detail-tab ${detailTab === "headers" ? "active" : ""}`} onClick={() => setDetailTab("headers")}>Headers</button>
+                        <button className={`detail-tab ${detailTab === "replay" ? "active" : ""}`} onClick={() => setDetailTab("replay")}>Replay</button>
+                        <button className={`detail-tab ${detailTab === "history" ? "active" : ""}`} onClick={() => setDetailTab("history")}>
+                          History{attempts.length > 0 ? ` (${attempts.length})` : ""}
                         </button>
-                        {replayResult && (
-                          <div className={`replay-result ${replayResult.error ? "error" : "success"}`}>
-                            {replayResult.error ? (
-                              <span style={{ color: "var(--error)" }}>Error: {replayResult.error}</span>
-                            ) : (
-                              <>
-                                <span style={{ color: parseInt(replayResult.status_code, 10) < 400 ? "var(--success)" : "var(--error)" }}>{replayResult.status_code}</span>
-                                <span style={{ color: "var(--text-dim)", margin: "0 8px" }}>·</span>
-                                <span style={{ color: "var(--text-dim)" }}>{replayResult.duration_ms}ms</span>
-                                {replayResult.status_code === "405" && (
-                                  <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                                    {REPLAY_405_HINT}
-                                  </div>
-                                )}
-                                <div style={{ marginTop: 8, color: "var(--text-muted)" }}>{replayResult.response_body?.slice(0, 200)}</div>
-                              </>
+                      </div>
+                      <div className="detail-scroll">
+                        {detailTab === "overview" && (
+                          <>
+                            <div className="detail-meta-row">
+                              <div>
+                                <div className="detail-label">Method</div>
+                                <div className="detail-meta-val" style={{ color: METHOD_COLOR[detail.method] }}>{detail.method}</div>
+                              </div>
+                              <div>
+                                <div className="detail-label">Source IP</div>
+                                <div className="detail-meta-val">{detail.source_ip}</div>
+                              </div>
+                              <div>
+                                <div className="detail-label">Received</div>
+                                <div className="detail-meta-val">{timeAgo(detail.received_at)}</div>
+                              </div>
+                              <div>
+                                <div className="detail-label">Content-Type</div>
+                                <div className="detail-meta-val">{detail.content_type || "—"}</div>
+                              </div>
+                            </div>
+                            {detail.body && (
+                              <div className="detail-section">
+                                <div className="detail-label">Body</div>
+                                <div className="body-block">{formatJson(detail.body)}</div>
+                              </div>
                             )}
+                            {Object.keys(detail.query_params || {}).length > 0 && (
+                              <div className="detail-section">
+                                <div className="detail-label">Query Params</div>
+                                <table className="kv-table">
+                                  <tbody>
+                                    {Object.entries(detail.query_params).map(([k, v]) => (
+                                      <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {detailTab === "headers" && (
+                          <div className="detail-section">
+                            <table className="kv-table">
+                              <tbody>
+                                {Object.entries(detail.headers).map(([k, v]) => (
+                                  <tr key={k}><td>{k}</td><td>{String(v)}</td></tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         )}
-                      </div>
 
-                      {attempts.length > 0 && (
-                        <div className="detail-section">
-                          <div className="detail-label">Delivery Attempts</div>
-                          <div className="attempts-list">
-                            {attempts.map(a => (
-                              <div key={a.id} className="attempt-row">
-                                <div className="attempt-dot" style={{
-                                  background: a.error ? "var(--error)" : a.status_code && parseInt(a.status_code) < 300 ? "var(--success)" : "var(--warning)"
-                                }} />
-                                <span style={{ color: a.error ? "var(--error)" : a.status_code && parseInt(a.status_code) < 300 ? "var(--success)" : "var(--warning)" }}>
-                                  {a.error ? "Error" : a.status_code}
-                                </span>
-                                <span style={{ color: "var(--text-dim)", flex: 1 }}>{a.destination_url}</span>
-                                <span style={{ color: "var(--text-faint)" }}>{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
-                                <span style={{ color: "var(--text-faint)" }}>{timeAgo(a.attempted_at)}</span>
+                        {detailTab === "replay" && (
+                          <>
+                            <div className="replay-hint">
+                              Sends with the original method ({detail.method}). Localhost is blocked — use a public URL or tunnel.
+                            </div>
+                            <div className="preset-row">
+                              {REPLAY_PRESETS.map((p) => (
+                                <button key={p.url} type="button" className="preset-chip" onClick={() => setReplayUrl(p.url)} title={p.hint}>
+                                  {p.label}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              className="replay-input"
+                              value={replayUrl}
+                              onChange={e => setReplayUrl(e.target.value)}
+                              placeholder="Destination URL"
+                              style={!replayUrlValid && replayUrl ? { borderColor: "var(--error)" } : {}}
+                            />
+                            {!replayUrlValid && replayUrl && (
+                              <div className="replay-url-error">Enter a valid http:// or https:// URL</div>
+                            )}
+                            <textarea
+                              className="replay-textarea"
+                              value={replayBody || ""}
+                              onChange={e => setReplayBody(e.target.value)}
+                              placeholder="Request body (edit before replaying)"
+                            />
+                            <button className="replay-btn" onClick={replay} disabled={replaying || !replayUrlValid}>
+                              {replaying ? "Sending..." : "↩ Replay"}
+                            </button>
+                            {replayResult && (
+                              <div className={`replay-result ${replayResult.error ? "error" : "success"}`}>
+                                {replayResult.error ? (
+                                  <span className="replay-error-text">Error: {replayResult.error}</span>
+                                ) : (
+                                  <>
+                                    <span className={parseInt(replayResult.status_code, 10) < 400 ? "status-ok" : "status-bad"}>{replayResult.status_code}</span>
+                                    <span className="replay-sep">·</span>
+                                    <span className="replay-dur">{replayResult.duration_ms}ms</span>
+                                    {replayResult.status_code === "405" && (
+                                      <div className="replay-405-hint">{REPLAY_405_HINT}</div>
+                                    )}
+                                    <div className="replay-response-body">{replayResult.response_body?.slice(0, 200)}</div>
+                                  </>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                            )}
+                          </>
+                        )}
+
+                        {detailTab === "history" && (
+                          attempts.length === 0 ? (
+                            <div className="attempts-empty">No delivery attempts yet.</div>
+                          ) : (
+                            <div className="attempts-list">
+                              {attempts.map(a => {
+                                const s = a.error ? "error" : a.status_code && parseInt(a.status_code) < 300 ? "ok" : "warn";
+                                return (
+                                  <div key={a.id} className="attempt-row">
+                                    <div className={`attempt-dot attempt-dot-${s}`} />
+                                    <span className={`attempt-text-${s}`}>{a.error ? "Error" : a.status_code}</span>
+                                    <span className="attempt-url">{a.destination_url}</span>
+                                    <span className="attempt-faint">{a.duration_ms ? `${a.duration_ms}ms` : "—"}</span>
+                                    <span className="attempt-faint">{timeAgo(a.attempted_at)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
