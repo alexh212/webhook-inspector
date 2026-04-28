@@ -1,9 +1,10 @@
 from logging.config import fileConfig
-from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 from models import Base
 from dotenv import load_dotenv
 import asyncio, os
+
+from database import create_database_engine
 
 load_dotenv()
 config = context.config
@@ -16,7 +17,7 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 async def run_async_migrations():
-    engine = create_async_engine(os.getenv("DATABASE_URL"))
+    engine = create_database_engine(echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(do_run_migrations)
     await engine.dispose()

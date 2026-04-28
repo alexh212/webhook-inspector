@@ -5,9 +5,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from dotenv import load_dotenv
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
+
+from database import create_database_engine
 
 load_dotenv()
 
@@ -20,11 +22,7 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 async def client():
-    engine = create_async_engine(
-        os.getenv("DATABASE_URL"),
-        poolclass=NullPool,
-        echo=False
-    )
+    engine = create_database_engine(echo=False, poolclass=NullPool)
     TestSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     from database import get_db

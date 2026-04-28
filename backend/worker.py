@@ -7,10 +7,11 @@ import uuid
 
 from dotenv import load_dotenv
 import redis.asyncio as aioredis
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 
+from database import create_database_engine
 from models import CapturedRequest, DeliveryAttempt
 from retry import do_replay, enqueue_retry, sanitize_headers, validate_destination_url
 
@@ -19,11 +20,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("webhookinspector.worker")
 
-db_url = os.getenv("DATABASE_URL")
-if not db_url:
+if not os.getenv("DATABASE_URL"):
     raise RuntimeError("DATABASE_URL environment variable is required")
 
-engine = create_async_engine(db_url)
+engine = create_database_engine(echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 redis_client = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
 
