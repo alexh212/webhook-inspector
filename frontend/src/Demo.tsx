@@ -103,6 +103,32 @@ export default function Demo() {
           ● {status === "live" ? "connected" : status}
         </span>
       </div>
+      <div className="demo-explainer">
+        <div className="demo-diagram" aria-label="Webhook flow diagram">
+          <div className="demo-step">
+            <div className="demo-step-title">Webhook source</div>
+            <div className="demo-step-text">Stripe, GitHub, Shopify sends an event</div>
+          </div>
+          <div className="demo-arrow">→</div>
+          <div className="demo-step">
+            <div className="demo-step-title">Relay capture</div>
+            <div className="demo-step-text">Store headers + body instantly</div>
+          </div>
+          <div className="demo-arrow">→</div>
+          <div className="demo-step">
+            <div className="demo-step-title">Debug fast</div>
+            <div className="demo-step-text">Inspect payload and replay safely</div>
+          </div>
+        </div>
+        <div className="demo-use-case">
+          <span className="demo-use-case-label">Use case</span>
+          <span>
+            A payment webhook fails in production. You compare the exact payload and signature in seconds,
+            then replay it to verify your fix before customers are impacted.
+          </span>
+        </div>
+        <div className="demo-cta-line">Create endpoint to try this with your own webhook source.</div>
+      </div>
       <div className="demo-body">
         <div className="demo-feed">
           {requests.length === 0 ? (
