@@ -86,13 +86,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 
 /* Layout */
 .layout { display: flex; height: 100vh; flex-direction: column; }
-.dashboard-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; padding: 0 32px; height: 56px; width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); flex-shrink: 0; box-sizing: border-box; }
+.dashboard-nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--nav-bg); backdrop-filter: blur(12px); flex-shrink: 0; box-sizing: border-box; }
 .dashboard-nav-logo { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
-.nav-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-.nav-btn:hover { border-color: var(--border-strong); color: var(--text); }
 .nav-left { display: flex; align-items: center; gap: 12px; }
-.github-nav-link { display: inline-flex; align-items: center; gap: 7px; color: #888; text-decoration: none; font-size: 13px; transition: color 0.15s ease; }
-.github-nav-link:hover { color: #ededed; }
+.github-nav-link { display: inline-flex; align-items: center; gap: 7px; color: var(--text-secondary); text-decoration: none; font-size: 13px; transition: color 0.15s ease; }
+.github-nav-link:hover { color: var(--text); }
 .dashboard-body { display: flex; flex: 1; overflow: hidden; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 .content-area { flex: 1; display: flex; overflow: hidden; }
@@ -178,7 +176,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .attempt-faint { color: var(--text-faint); }
 
 /* Replay */
-.replay-section { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
 .replay-input { width: 100%; height: 32px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; font-size: 12px; font-family: monospace; color: var(--text); outline: none; margin-bottom: 8px; }
 .replay-input:focus { border-color: var(--border-strong); }
 .replay-textarea { width: 100%; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-size: 12px; font-family: monospace; color: var(--code-text); outline: none; resize: vertical; min-height: 80px; margin-bottom: 8px; }
@@ -189,11 +186,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .replay-result { margin-top: 12px; padding: 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: monospace; }
 .replay-result.success { border-color: var(--success-border); }
 .replay-result.error { border-color: var(--error-border-subtle); }
-
-/* Empty state */
-.empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--text-ghost); }
-.empty-state-icon { font-size: 24px; }
-.empty-state-text { font-size: 12px; }
 
 /* Theme toggle */
 .theme-toggle { height: 28px; width: 28px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Endpoint, DeleteTarget } from "./types";
-import { apiFetch, API, SESSION_ID, GITHUB_PROFILE_URL, type Theme } from "./utils";
+import { apiFetch, API, copyTextWithFeedback, createEndpoint, GITHUB_PROFILE_URL, type Theme } from "./utils";
 import EndpointSidebar from "./EndpointSidebar";
 import RequestFeed, { type RequestFeedHandle } from "./RequestFeed";
 import DetailPane from "./DetailPane";
@@ -55,7 +55,6 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
   }, [onMouseMoveSidebar, onMouseMoveFeed, stopResize]);
 
   useEffect(() => {
-    setLoadingEndpoints(true);
     apiFetch("/api/endpoints")
       .then(r => r.json())
       .then(setEndpoints)
@@ -74,14 +73,8 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
 
   const createDefault = async () => {
     try {
-      const res = await fetch(`${API}/api/endpoints`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-session-id": SESSION_ID },
-        body: JSON.stringify({ name: "Untitled" }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const ep = await res.json();
-      handleEndpointCreated({ id: ep.id, name: "Untitled", created_at: new Date().toISOString() }, ep.secret ?? "");
+      const created = await createEndpoint("Untitled");
+      handleEndpointCreated(created.endpoint, created.secret);
     } catch (e) {
       showError(`Failed to create endpoint: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -104,6 +97,15 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
     } catch (e) {
       showError(`Delete failed: ${e instanceof Error ? e.message : String(e)}`);
     }
+  };
+
+  const copyHookUrl = () => {
+    copyTextWithFeedback(hookUrl, setCopied);
+  };
+
+  const copySecret = () => {
+    if (!selected || !secrets[selected.id]) return;
+    copyTextWithFeedback(secrets[selected.id], setSecretCopied);
   };
 
   return (
@@ -195,22 +197,14 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
                       </div>
                       <div className="secret-row">
                         <div className="hook-url secret-value">{secrets[selected.id]}</div>
-                        <button className="secret-copy-btn" onClick={() => {
-                          navigator.clipboard.writeText(secrets[selected.id]);
-                          setSecretCopied(true);
-                          setTimeout(() => setSecretCopied(false), 2000);
-                        }}>
+                        <button className="secret-copy-btn" onClick={copySecret}>
                           {secretCopied ? "✓" : "copy"}
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-                <button className="copy-btn" onClick={() => {
-                  navigator.clipboard.writeText(hookUrl);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}>
+                <button className="copy-btn" onClick={copyHookUrl}>
                   {copied ? "✓ Copied" : "Copy URL"}
                 </button>
               </div>

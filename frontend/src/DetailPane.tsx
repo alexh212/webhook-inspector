@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { RequestDetail, ReplayResult, DeliveryAttempt } from "./types";
 import { apiFetch, timeAgo, formatJson, isValidUrl } from "./utils";
 import { DEFAULT_REPLAY_URL, parseReplayError, REPLAY_405_HINT, REPLAY_PRESETS } from "./onboardingCopy";
@@ -20,6 +20,13 @@ export default function DetailPane({ requestId, onError }: Props) {
   const [replaying, setReplaying] = useState(false);
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
 
+  const loadAttempts = useCallback((id: string) => {
+    apiFetch(`/api/requests/${id}/attempts`)
+      .then(r => r.json())
+      .then(setAttempts)
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!requestId) { setDetail(null); return; }
     setLoading(true);
@@ -36,15 +43,10 @@ export default function DetailPane({ requestId, onError }: Props) {
 
   useEffect(() => {
     if (!requestId) return;
-    const load = () =>
-      apiFetch(`/api/requests/${requestId}/attempts`)
-        .then(r => r.json())
-        .then(setAttempts)
-        .catch(() => {});
-    load();
-    const interval = setInterval(load, 5000);
+    loadAttempts(requestId);
+    const interval = setInterval(() => loadAttempts(requestId), 5000);
     return () => clearInterval(interval);
-  }, [requestId]);
+  }, [requestId, loadAttempts]);
 
   const replay = async () => {
     if (!detail) return;
@@ -62,7 +64,7 @@ export default function DetailPane({ requestId, onError }: Props) {
       });
       const data = await res.json();
       setReplayResult(data);
-      apiFetch(`/api/requests/${detail.id}/attempts`).then(r => r.json()).then(setAttempts).catch(() => {});
+      loadAttempts(detail.id);
     } catch (e) {
       onError(`Replay failed: ${parseReplayError(e instanceof Error ? e.message : String(e))}`);
     } finally {

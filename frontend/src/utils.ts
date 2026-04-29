@@ -1,3 +1,5 @@
+import type { CapturedRequest, Endpoint } from "./types";
+
 export function timeAgo(date: string): string {
   const seconds = Math.floor((Date.now() - new Date(date + "Z").getTime()) / 1000);
   if (seconds < 5) return "just now";
@@ -59,6 +61,51 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     throw new Error(text || `Request failed (${res.status})`);
   }
   return res;
+}
+
+type EndpointCreateApiResponse = {
+  id?: unknown;
+  secret?: unknown;
+};
+
+function getEndpointId(data: EndpointCreateApiResponse): string {
+  if (typeof data.id !== "string" || data.id.length === 0) {
+    throw new Error("Invalid endpoint response");
+  }
+  return data.id;
+}
+
+export async function createEndpoint(name: string): Promise<{ endpoint: Endpoint; secret: string }> {
+  const normalizedName = name.trim() || "Untitled";
+  const res = await apiFetch("/api/endpoints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: normalizedName }),
+  });
+  const data: EndpointCreateApiResponse = await res.json();
+  return {
+    endpoint: {
+      id: getEndpointId(data),
+      name: normalizedName,
+      created_at: new Date().toISOString(),
+    },
+    secret: typeof data.secret === "string" ? data.secret : "",
+  };
+}
+
+export async function fetchEndpointRequests(endpointId: string): Promise<CapturedRequest[]> {
+  const res = await apiFetch(`/api/endpoints/${endpointId}/requests`);
+  return res.json();
+}
+
+export async function copyTextWithFeedback(
+  text: string,
+  setCopied: (value: boolean) => void,
+  resetAfterMs = 2000,
+): Promise<void> {
+  await navigator.clipboard.writeText(text);
+  setCopied(true);
+  window.setTimeout(() => setCopied(false), resetAfterMs);
 }
 
 export type Theme = "dark" | "light";

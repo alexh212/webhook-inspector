@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { Endpoint, CapturedRequest, DeleteTarget } from "./types";
-import { API, SESSION_ID, timeAgo } from "./utils";
+import { API, SESSION_ID, copyTextWithFeedback, fetchEndpointRequests, timeAgo } from "./utils";
 
 interface Props {
   endpoint: Endpoint;
@@ -34,12 +34,10 @@ const RequestFeed = forwardRef<RequestFeedHandle, Props>(function RequestFeed(
   }));
 
   const copyUrl = () => {
-    navigator.clipboard.writeText(hookUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyTextWithFeedback(hookUrl, setCopied);
   };
 
-  const connect = useCallback((endpointId: string) => {
+  const connect = useCallback(function openConnection(endpointId: string) {
     if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
     if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
 
@@ -56,7 +54,7 @@ const RequestFeed = forwardRef<RequestFeedHandle, Props>(function RequestFeed(
       const delay = Math.min(reconnectDelay.current, 30000);
       reconnectTimer.current = setTimeout(() => {
         reconnectDelay.current = delay * 2;
-        connect(endpointId);
+        openConnection(endpointId);
       }, delay);
     };
   }, []);
@@ -64,10 +62,7 @@ const RequestFeed = forwardRef<RequestFeedHandle, Props>(function RequestFeed(
   useEffect(() => {
     setRequests([]);
     setLoading(true);
-    fetch(`${API}/api/endpoints/${endpoint.id}/requests`, {
-      headers: { "x-session-id": SESSION_ID },
-    })
-      .then(r => r.json())
+    fetchEndpointRequests(endpoint.id)
       .then(setRequests)
       .catch(e => onError(`Failed to load requests: ${e.message}`))
       .finally(() => setLoading(false));
