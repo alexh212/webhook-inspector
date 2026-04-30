@@ -3,13 +3,12 @@ import { createRoot } from 'react-dom/client'
 
 import './index.css'
 import App from './App.tsx'
-import { type Theme, getStoredTheme, applyTheme } from './utils'
+import { type Theme, getStoredTheme, applyTheme, THEME_MANUAL_KEY, THEME_STORAGE_KEY } from './utils'
 
 export function Root() {
   const [theme, setTheme] = useState<Theme>(getStoredTheme);
   const [hasManualTheme, setHasManualTheme] = useState<boolean>(() => {
-    const stored = localStorage.getItem("wi_theme");
-    return stored === "dark" || stored === "light";
+    return localStorage.getItem(THEME_MANUAL_KEY) === "1";
   });
 
   useEffect(() => { applyTheme(theme); }, [theme]);
@@ -26,7 +25,8 @@ export function Root() {
     setHasManualTheme(true);
     setTheme(prev => {
       const next = prev === "dark" ? "light" : "dark";
-      localStorage.setItem("wi_theme", next);
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+      localStorage.setItem(THEME_MANUAL_KEY, "1");
       return next;
     });
   }, []);

@@ -112,10 +112,13 @@ export async function copyTextWithFeedback(
 }
 
 export type Theme = "dark" | "light";
+export const THEME_STORAGE_KEY = "wi_theme";
+export const THEME_MANUAL_KEY = "wi_theme_manual";
 
 export function getStoredTheme(): Theme {
-  const stored = localStorage.getItem("wi_theme");
-  if (stored === "dark" || stored === "light") return stored;
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  const hasManual = localStorage.getItem(THEME_MANUAL_KEY) === "1";
+  if (hasManual && (stored === "dark" || stored === "light")) return stored;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 

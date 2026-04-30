@@ -95,13 +95,10 @@ export default function Demo() {
   return (
     <div className="demo-panel">
       <div className="demo-label">
-        Live demo —{" "}
+        Live sample —{" "}
         <span className={status === "live" ? "ws-live" : "ws-offline"}>
           ● {status === "live" ? "connected" : status}
         </span>
-      </div>
-      <div className="demo-cta-line">
-        Auto-updating live sample. Create endpoint to try this with your own webhook source.
       </div>
       <div className="demo-body">
         <div className="demo-feed">
