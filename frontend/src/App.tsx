@@ -184,31 +184,31 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
           ) : (
             <>
               <div className="main-header">
-                <div className="header-left">
-                  <div className="hook-label">Hook URL</div>
-                  <div className="hook-url">{hookUrl}</div>
-                  {secrets[selected.id] && (
-                    <div className="secret-section">
-                      <div className="hook-label">
-                        Signing Secret<span className="hook-label-note">(shown once)</span>
-                      </div>
-                      <div className="secret-hint">
-                        Sign with HMAC-SHA256, send in the <code>x-webhook-signature</code> header.
-                      </div>
-                      <div className="secret-row">
-                        <div className="hook-url secret-value">{secrets[selected.id]}</div>
-                        <button className="secret-copy-btn" onClick={copySecret}>
-                          {secretCopied ? "✓" : "copy"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="header-actions">
-                  <button className="copy-btn" onClick={copyHookUrl}>
+                <div className="main-header-row">
+                  <div className="hook-block">
+                    <div className="hook-label">Hook URL</div>
+                    <div className="hook-url">{hookUrl}</div>
+                  </div>
+                  <button className="copy-btn header-copy-btn" onClick={copyHookUrl}>
                     {copied ? "✓ Copied" : "Copy URL"}
                   </button>
                 </div>
+                {secrets[selected.id] && (
+                  <div className="secret-section">
+                    <div className="hook-label">
+                      Signing Secret<span className="hook-label-note">(shown once)</span>
+                    </div>
+                    <div className="secret-hint">
+                      Sign with HMAC-SHA256, send in the <code>x-webhook-signature</code> header.
+                    </div>
+                    <div className="secret-row">
+                      <div className="hook-url secret-value">{secrets[selected.id]}</div>
+                      <button className="secret-copy-btn" onClick={copySecret}>
+                        {secretCopied ? "✓" : "copy"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="content-area">

@@ -128,7 +128,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .add-btn:hover { background: var(--border-hover); color: var(--text); }
 
 /* Header */
-.main-header { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; background: var(--bg-surface); }
+.main-header { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; background: var(--bg-surface); }
+.main-header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; min-width: 0; }
+.hook-block { flex: 1; min-width: 0; }
 .hook-label { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
 .hook-url { font-size: 12px; color: var(--text-secondary); font-family: monospace; background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 10px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; }
 .copy-btn { height: 30px; padding: 0 12px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 11px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
@@ -216,7 +218,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .error-toast-close { cursor: pointer; color: var(--text-muted); }
 
 /* Secret section */
-.secret-section { margin-top: 10px; }
+.secret-section { margin-top: 2px; }
 .hook-label-note { color: var(--text-ghost); margin-left: 6px; font-weight: normal; text-transform: none; font-size: 10px; letter-spacing: 0; }
 .secret-hint { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; line-height: 1.5; }
 .secret-hint code { font-family: monospace; }
@@ -242,9 +244,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .ep-list-loading { font-size: 11px; color: var(--text-faint); padding: 8px 10px; }
 .ep-list-empty { font-size: 11px; color: var(--text-ghost); padding: 8px 10px; }
 
-/* Header left */
-.header-left { flex: 1; min-width: 0; }
-.header-actions { display: flex; align-items: flex-start; justify-content: flex-end; flex-shrink: 0; padding-top: 18px; }
+.header-copy-btn { flex-shrink: 0; }
 
 /* Feed resize handle */
 .feed-resize { width: 4px; cursor: col-resize; flex-shrink: 0; background: transparent; border-right: 1px solid var(--bg-raised); transition: background 0.15s; }
@@ -347,15 +347,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
   .detail {
     min-height: 42vh;
   }
-  .main-header {
+  .main-header { align-items: stretch; }
+  .main-header-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
   }
-  .header-actions {
-    justify-content: flex-start;
-    padding-top: 0;
-  }
+  .header-copy-btn { align-self: flex-start; }
 }
 
 @media (max-width: 640px) {
