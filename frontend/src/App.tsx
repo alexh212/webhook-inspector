@@ -220,6 +220,10 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
           {!selected ? (
             <div className="welcome-state">
               <div className="welcome-inner">
+                <div className="welcome-title">
+                  <span className="welcome-title-icon" aria-hidden="true">↪</span>
+                  <span>Relay</span>
+                </div>
                 <p className="welcome-desc">
                   Relay captures every HTTP request sent to your endpoint — headers, body, query params — in real time.
                   Inspect the full payload and replay it to any server.

@@ -18,7 +18,7 @@ type DemoRequest = { id: string; method: string; received_at: string; body?: str
 
 export default function Demo() {
   const [requests, setRequests] = useState<DemoRequest[]>([]);
-  const [selected, setSelected] = useState<DemoRequest | null>(null);
+  const [latestBody, setLatestBody] = useState<string | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
   const endpointIdRef = useRef<string | null>(null);
   const secretRef = useRef<string>("");
@@ -45,6 +45,14 @@ export default function Demo() {
           try {
             const req = JSON.parse(event.data);
             setRequests(prev => [req, ...prev].slice(0, 8));
+            fetch(`${API}/api/requests/${req.id}`, {
+              headers: { "x-session-id": DEMO_SESSION },
+            })
+              .then(res => (res.ok ? res.json() : null))
+              .then(detail => {
+                if (detail && typeof detail.body === "string") setLatestBody(detail.body);
+              })
+              .catch(() => {});
           } catch { /* ignore */ }
         };
         ws.onerror = () => setStatus("error");
@@ -84,17 +92,6 @@ export default function Demo() {
     return () => clearInterval(interval);
   }, [status]);
 
-  const selectRequest = async (r: DemoRequest) => {
-    try {
-      const res = await fetch(`${API}/api/requests/${r.id}`, {
-        headers: { "x-session-id": DEMO_SESSION },
-      });
-      if (!res.ok) return;
-      const detail = await res.json();
-      setSelected({ ...r, body: detail.body });
-    } catch { /* ignore */ }
-  };
-
   return (
     <div className="demo-panel">
       <div className="demo-label">
@@ -127,7 +124,9 @@ export default function Demo() {
             then replay it to verify your fix before customers are impacted.
           </span>
         </div>
-        <div className="demo-cta-line">Create endpoint to try this with your own webhook source.</div>
+        <div className="demo-cta-line">
+          Auto-updating live sample. Create endpoint to try this with your own webhook source.
+        </div>
       </div>
       <div className="demo-body">
         <div className="demo-feed">
@@ -136,11 +135,10 @@ export default function Demo() {
               {status === "connecting" ? "Connecting..." : "Waiting..."}
             </div>
           ) : (
-            requests.map(r => (
+            requests.map((r, idx) => (
               <div
                 key={r.id}
-                className={`demo-req ${selected?.id === r.id ? "active" : ""}`}
-                onClick={() => selectRequest(r)}
+                className={`demo-req ${idx === 0 ? "active" : ""}`}
               >
                 <span className={`method method-${r.method}`}>{r.method}</span>
                 <span className="demo-time">{timeAgo(r.received_at)}</span>
@@ -149,10 +147,10 @@ export default function Demo() {
           )}
         </div>
         <div className="demo-detail">
-          {!selected ? (
-            <div className="demo-detail-empty">← click a request</div>
+          {!latestBody ? (
+            <div className="demo-detail-empty">Latest payload appears here</div>
           ) : (
-            <pre className="demo-body-pre">{selected.body ? formatJson(selected.body) : "(empty)"}</pre>
+            <pre className="demo-body-pre">{formatJson(latestBody)}</pre>
           )}
         </div>
       </div>
