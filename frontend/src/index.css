@@ -339,10 +339,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 /* Welcome state */
 .welcome-state { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .welcome-inner { max-width: 540px; width: 100%; }
-.welcome-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .welcome-title { display: inline-flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); margin-bottom: 0; }
 .welcome-title-icon { font-size: 23px; line-height: 1; color: var(--text-secondary); }
 .welcome-desc { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 14px; }
+.welcome-actions { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .welcome-demo-intro { margin-bottom: 10px; }
 .welcome-demo-title { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
 .welcome-cta { height: 36px; padding: 0 18px; background: var(--cta-bg); color: var(--cta-text); border: none; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s, transform 0.15s; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
@@ -535,15 +535,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
   .welcome-state {
     padding: 20px 12px;
   }
-  .welcome-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
   .welcome-desc {
     font-size: 13px;
     margin-bottom: 12px;
+  }
+  .welcome-actions {
+    width: 100%;
+    margin-bottom: 10px;
   }
   .welcome-demo-intro {
     margin-bottom: 10px;
@@ -556,7 +554,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
     font-size: 20px;
   }
   .welcome-cta {
-    width: auto;
+    width: 100%;
   }
 
   .mobile-action-bar {
