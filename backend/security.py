@@ -1,9 +1,12 @@
+import hashlib
+import hmac
 import ipaddress
 import socket
-import time
 from urllib.parse import urlparse
 
-import httpx
+from fastapi import HTTPException
+
+# Trust-boundary primitives. Any diff to this file is security-relevant.
 
 BLOCKED_NETWORKS = [
     ipaddress.ip_network("0.0.0.0/8"),
@@ -47,7 +50,7 @@ _HOP_BY_HOP = frozenset(
 
 
 def sanitize_headers(headers: dict) -> dict:
-    return {key: value for key, value in headers.items() if key.lower() not in _HOP_BY_HOP}
+    return {k: v for k, v in headers.items() if k.lower() not in _HOP_BY_HOP}
 
 
 def validate_destination_url(url: str) -> None:
@@ -64,35 +67,16 @@ def validate_destination_url(url: str) -> None:
     except socket.gaierror as exc:
         raise ValueError(f"Cannot resolve hostname: {hostname}") from exc
 
-    for family, _, _, _, sockaddr in infos:
+    for _family, _, _, _, sockaddr in infos:
         ip = ipaddress.ip_address(sockaddr[0])
         for network in BLOCKED_NETWORKS:
             if ip in network:
                 raise ValueError(f"Destination resolves to blocked address: {ip}")
 
 
-async def do_replay(method: str, url: str, headers: dict, body: str | None) -> dict:
-    start = time.perf_counter()
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.request(
-                method=method,
-                url=url,
-                headers=headers,
-                content=body.encode() if body else b"",
-            )
-        return {
-            "status_code": str(response.status_code),
-            "response_headers": dict(response.headers),
-            "response_body": response.text,
-            "duration_ms": str(round((time.perf_counter() - start) * 1000)),
-            "error": None,
-        }
-    except httpx.HTTPError as exc:
-        return {
-            "status_code": None,
-            "response_headers": {},
-            "response_body": None,
-            "duration_ms": None,
-            "error": f"Replay request failed: {exc}",
-        }
+def verify_hmac_signature(secret: str, body: bytes, provided: str | None) -> None:
+    if not provided:
+        raise HTTPException(status_code=401, detail="Missing webhook signature")
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid signature")

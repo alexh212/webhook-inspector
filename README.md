@@ -31,10 +31,10 @@ python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 alembic upgrade head
-uvicorn main:app --reload
+uvicorn app:app --reload
  
 # Worker (separate terminal)
-python -m worker
+python worker.py
  
 # Frontend (separate terminal)
 cd ../frontend

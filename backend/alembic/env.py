@@ -4,8 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from dotenv import load_dotenv
 
-from app.db.models import Base
-from app.db.session import create_database_engine
+from store import Base, create_database_engine
 
 load_dotenv()
 config = context.config

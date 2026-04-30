@@ -1,48 +1,64 @@
-# Backend Flow
+# Backend Architecture
+
+The backend is five flat modules at `backend/`. A request enters `app.py`, which holds the FastAPI app, middleware, dependencies, pydantic models, and every route. Thin handlers either call a `store.py` query helper for plain CRUD or a `flows.py` function for orchestrated work (capture, replay). `flows.py` delegates trust-boundary checks (SSRF, HMAC, hop-by-hop stripping) to `security.py` and persistence to `store.py`. The retry `worker.py` runs the same `flows.process_retry_job` that the replay API would run, so the API and the worker share one execution path. Redis is used for two things only: pub/sub fan-out to WebSocket subscribers on capture, and a sorted-set retry queue scored by due-time.
+
+## Request, replay, and worker flow
 
 ```mermaid
-flowchart TD
-client[Client] --> apiRoutes["APIRoutes (/health, /api/endpoints, /api/requests/*)"]
-webhookSender[WebhookSender] --> hookRoute["HookRoute (/hooks/{endpoint_id})"]
-browserWs[BrowserWebSocket] --> wsRoute["WebSocketRoute (/ws/endpoints/{endpoint_id})"]
+flowchart LR
+  client[Client]
+  webhook[WebhookSender]
+  ws[BrowserWS]
 
-subgraph appLayer [AppLayer]
-apiRoutes --> endpointApi["endpoints.py"]
-apiRoutes --> requestApi["requests.py"]
-apiRoutes --> healthApi["health.py"]
-hookRoute --> hookApi["hooks.py"]
-wsRoute --> wsApi["websocket.py"]
+  client --> appPy["app.py routes"]
+  webhook --> appPy
+  ws --> appPy
 
-endpointApi --> endpointService["EndpointService:create/list/delete endpoint"]
-requestApi --> requestService["RequestService:get/list/delete request + list attempts"]
-requestApi --> replayService["ReplayService:replay request + enqueue retry"]
-hookApi --> captureService["CaptureService:validate/signature/store/publish"]
-wsApi --> streamService["StreamService:authorize session + stream pubsub events"]
+  appPy -- "CRUD" --> storePy["store.py"]
+  appPy -- "POST /hooks" --> capture["flows.capture_webhook"]
+  appPy -- "POST /replay" --> replayApi["flows.replay_request"]
 
-workerLoop["WorkerLoop:zpopmin -> due check -> process_retry_job -> sleep(1s)"] --> replayService
-end
+  capture --> hmac["security.verify_hmac_signature"]
+  capture --> storePy
+  capture --> redisPub[("Redis pub/sub")]
+  redisPub --> ws
 
-subgraph infraLayer [InfraLayer]
-endpointService --> db[(Postgres)]
-requestService --> db
-captureService --> db
-replayService --> db
+  replayApi --> shared["flows._execute_replay"]
+  worker["worker.py loop"] --> retryJob["flows.process_retry_job"]
+  retryJob --> shared
 
-captureService --> redisPub[(RedisPubSub)]
-streamService --> redisPub
-replayService --> redisQueue[(RedisRetryQueue)]
-redisQueue --> workerLoop
-
-replayService --> outboundHttp[OutboundHTTP]
-outboundHttp --> target[ExternalTarget]
-end
+  shared --> ssrf["security.validate_destination_url"]
+  shared --> sanitize["security.sanitize_headers"]
+  shared --> http[("httpx outbound")]
+  shared --> storePy
+  shared --> retryQueue[("Redis retry zset")]
+  retryQueue --> worker
 ```
 
-## Route to service mapping
+## Route to flow to store mapping
 
-- `GET /health` -> `health.py` (DB + Redis checks)
-- `POST /api/endpoints`, `GET /api/endpoints`, `DELETE /api/endpoints/{id}` -> `EndpointService`
-- `GET /api/endpoints/{id}/requests`, `GET /api/requests/{id}`, `DELETE /api/requests/{id}`, `GET /api/requests/{id}/attempts` -> `RequestService`
-- `POST /api/requests/{id}/replay` -> `ReplayService`
-- `GET|POST|PUT|PATCH|DELETE /hooks/{endpoint_id}` -> `CaptureService`
-- `WS /ws/endpoints/{endpoint_id}` -> stream service logic in `websocket.py`
+| Route | Handler in `app.py` | Flow (`flows.py`) | Store (`store.py`) |
+| --- | --- | --- | --- |
+| `GET /health` | `health` | — | `db.execute("SELECT 1")` + `redis_client.ping` |
+| `POST /api/endpoints` | `create_endpoint` | — | `create_endpoint` |
+| `GET /api/endpoints` | `list_endpoints` | — | `list_endpoints` |
+| `DELETE /api/endpoints/{id}` | `delete_endpoint` | — | `delete_endpoint` |
+| `GET /api/endpoints/{id}/requests` | `list_endpoint_requests` | — | `list_requests` |
+| `GET /api/requests/{id}` | `get_request_details` | — | `get_request` |
+| `GET /api/requests/{id}/attempts` | `list_request_attempts` | — | `list_attempts` |
+| `DELETE /api/requests/{id}` | `delete_endpoint_request` | — | `delete_request` |
+| `POST /api/requests/{id}/replay` | `replay_endpoint_request` | `replay_request` -> `_execute_replay` -> `enqueue_retry` | `get_request_or_404`, `assert_request_session_access`, `add_delivery_attempt` |
+| `* /hooks/{id}` | `capture_hook` | `capture_webhook` | `get_endpoint_or_404`, `add_captured_request` |
+| `WS /ws/endpoints/{id}` | `websocket_feed` | — | `get_endpoint` |
+
+## Worker
+
+`worker.py` runs `redis_client.zpopmin` against `RETRY_QUEUE_KEY`. Jobs whose due-time is in the future are reinserted unchanged. Due jobs are passed to `flows.process_retry_job`, which validates the destination URL, fetches the captured request, calls `_execute_replay`, persists a `DeliveryAttempt`, and re-enqueues with `attempt_number + 1` on error or 5xx (capped at `MAX_RETRIES = 5`, exponential backoff `5 ** attempt`).
+
+## Design rules
+
+- `app.py` is the only HTTP/WS surface. Handlers stay thin: parse inputs, call a flow or a store helper, shape the response.
+- `flows.py` owns multi-step orchestration. The replay path is shared by the API entry point and the worker entry point via one private `_execute_replay` and one `_should_retry`.
+- `store.py` owns every DB read and write, including the SQLAlchemy models and session factory. Routes never construct queries.
+- `security.py` owns trust-boundary primitives only: SSRF blocklist, HMAC signature verification, hop-by-hop header stripping. Any diff here is security-relevant by definition.
+- `worker.py` is the retry loop and nothing else.

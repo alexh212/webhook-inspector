@@ -1,39 +1,38 @@
 from unittest.mock import AsyncMock, patch
 
-from dotenv import load_dotenv
-from httpx import AsyncClient, ASGITransport
 import pytest
+from dotenv import load_dotenv
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
-from database import create_database_engine
+from store import create_database_engine
 
 load_dotenv()
+
 
 @pytest.fixture(scope="session")
 async def client():
     engine = create_database_engine(echo=False, poolclass=NullPool)
     TestSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-    from app.main import app
-    from app.runtime import limiter
-    from database import get_db
+    import app as app_module
 
-    limiter.enabled = False
+    app_module.limiter.enabled = False
 
     async def override_get_db():
         async with TestSessionLocal() as session:
             yield session
 
-    app.dependency_overrides[get_db] = override_get_db
+    app_module.app.dependency_overrides[app_module.store.get_db] = override_get_db
 
-    with patch("app.runtime.redis_client") as mock_redis:
+    with patch("app.redis_client") as mock_redis:
         mock_redis.ping = AsyncMock(return_value=True)
         mock_redis.publish = AsyncMock(return_value=1)
         mock_redis.zadd = AsyncMock(return_value=1)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        async with AsyncClient(transport=ASGITransport(app=app_module.app), base_url="http://test") as c:
             yield c
 
-    app.dependency_overrides.clear()
-    limiter.enabled = True
+    app_module.app.dependency_overrides.clear()
+    app_module.limiter.enabled = True
