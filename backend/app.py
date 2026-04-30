@@ -78,6 +78,7 @@ def get_session_id(x_session_id: Optional[str] = Header(None)) -> str:
 
 class EndpointCreate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
+    require_signature: bool = False
 
 
 class ReplayRequest(BaseModel):
@@ -129,7 +130,7 @@ async def create_endpoint(
     db: AsyncSession = Depends(store.get_db),
     session_id: str = Depends(get_session_id),
 ):
-    return await store.create_endpoint(db, body.name, session_id)
+    return await store.create_endpoint(db, body.name, session_id, body.require_signature)
 
 
 @app.get("/api/endpoints")

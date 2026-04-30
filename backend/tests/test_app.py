@@ -1,5 +1,3 @@
-import hashlib
-import hmac
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -41,8 +39,7 @@ async def _capture(client, name: str) -> tuple[str, str]:
     ep = await client.post("/api/endpoints", json={"name": name}, headers=HEADERS)
     data = ep.json()
     body = b'{"event": "test"}'
-    sig = hmac.new(data["secret"].encode(), body, hashlib.sha256).hexdigest()
-    await client.post(f"/hooks/{data['id']}", content=body, headers={"x-webhook-signature": sig})
+    await client.post(f"/hooks/{data['id']}", content=body)
     reqs = await client.get(f"/api/endpoints/{data['id']}/requests", headers=HEADERS)
     return data["id"], reqs.json()[0]["id"]
 
@@ -92,6 +89,7 @@ async def test_create_endpoint(client):
     assert res.status_code == 200
     data = res.json()
     assert {"id", "url", "secret"} <= data.keys()
+    assert data["secret"] is None
 
 
 async def test_list_endpoints_session_isolation(client):
@@ -127,19 +125,22 @@ async def test_request_forbidden_for_other_session(client):
 async def test_capture_webhook_happy(client):
     ep = await client.post("/api/endpoints", json={"name": "Capture"}, headers=HEADERS)
     data = ep.json()
-    body = b'{"event": "payment.succeeded"}'
-    sig = hmac.new(data["secret"].encode(), body, hashlib.sha256).hexdigest()
     res = await client.post(
         f"/hooks/{data['id']}",
-        content=body,
-        headers={"Content-Type": "application/json", "x-webhook-signature": sig},
+        content=b'{"event": "payment.succeeded"}',
+        headers={"Content-Type": "application/json"},
     )
     assert res.status_code == 200
     assert res.json() == {"status": "received"}
 
 
 async def test_capture_webhook_missing_signature_rejected(client):
-    ep = await client.post("/api/endpoints", json={"name": "HMAC"}, headers=HEADERS)
+    ep = await client.post(
+        "/api/endpoints",
+        json={"name": "HMAC", "require_signature": True},
+        headers=HEADERS,
+    )
+    assert ep.json()["secret"] is not None
     res = await client.post(f"/hooks/{ep.json()['id']}", json={"event": "test"})
     assert res.status_code == 401
 
@@ -147,12 +148,10 @@ async def test_capture_webhook_missing_signature_rejected(client):
 async def test_capture_webhook_body_too_large(client):
     ep = await client.post("/api/endpoints", json={"name": "Size"}, headers=HEADERS)
     data = ep.json()
-    large = b"x" * (1024 * 1024 + 1)
-    sig = hmac.new(data["secret"].encode(), large, hashlib.sha256).hexdigest()
     res = await client.post(
         f"/hooks/{data['id']}",
-        content=large,
-        headers={"x-webhook-signature": sig, "content-length": str(len(large))},
+        content=b"x" * (1024 * 1024 + 1),
+        headers={"content-length": str(1024 * 1024 + 1)},
     )
     assert res.status_code == 413
 

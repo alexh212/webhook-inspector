@@ -145,8 +145,10 @@ async def assert_request_session_access(db: AsyncSession, captured: CapturedRequ
 # ----- endpoint CRUD -----
 
 
-async def create_endpoint(db: AsyncSession, name: str | None, session_id: str) -> dict:
-    secret = secrets.token_hex(32)
+async def create_endpoint(
+    db: AsyncSession, name: str | None, session_id: str, require_signature: bool = False
+) -> dict:
+    secret = secrets.token_hex(32) if require_signature else None
     endpoint = Endpoint(name=name, session_id=session_id, secret=secret)
     db.add(endpoint)
     await db.commit()
