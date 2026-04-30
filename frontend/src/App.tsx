@@ -229,9 +229,12 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
           {!selected ? (
             <div className="welcome-state">
               <div className="welcome-inner">
-                <div className="welcome-title">
-                  <span className="welcome-title-icon" aria-hidden="true">↪</span>
-                  <span>Relay</span>
+                <div className="welcome-head">
+                  <div className="welcome-title">
+                    <span className="welcome-title-icon" aria-hidden="true">↪</span>
+                    <span>Relay</span>
+                  </div>
+                  <button className="welcome-cta" onClick={createDefault}>+ New endpoint</button>
                 </div>
                 <p className="welcome-desc">
                   Relay captures every HTTP request sent to your endpoint — headers, body, query params — in real time.
@@ -256,7 +259,6 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
                     </div>
                   </div>
                 </div>
-                <button className="welcome-cta" onClick={createDefault}>+ New endpoint</button>
                 <Demo />
               </div>
             </div>
