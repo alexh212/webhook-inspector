@@ -10,13 +10,14 @@ interface Props {
   onSelect: (ep: Endpoint) => void;
   onCreated: (ep: Endpoint, secret: string) => void;
   onDeleteClick: (target: DeleteTarget) => void;
+  onDeleteAllClick: () => void;
   onResizeStart: () => void;
   onError: (msg: string) => void;
 }
 
 export default function EndpointSidebar({
   endpoints, selected, loading, width,
-  onSelect, onCreated, onDeleteClick, onResizeStart, onError,
+  onSelect, onCreated, onDeleteClick, onDeleteAllClick, onResizeStart, onError,
 }: Props) {
   const [newName, setNewName] = useState("");
 
@@ -33,7 +34,17 @@ export default function EndpointSidebar({
   return (
     <div className="sidebar" style={{ width }}>
       <div className="sidebar-header">
-        <div className="logo">Endpoints</div>
+        <div className="sidebar-tools">
+          <div className="logo">Endpoints</div>
+          <button
+            className="delete-all-btn"
+            onClick={onDeleteAllClick}
+            disabled={endpoints.length === 0}
+            title={endpoints.length === 0 ? "No endpoints to delete" : "Delete all endpoints"}
+          >
+            Delete all
+          </button>
+        </div>
         <div className="input-row">
           <input
             className="ep-input"

@@ -13,6 +13,7 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<DeleteTarget | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [loadingEndpoints, setLoadingEndpoints] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [feedWidth, setFeedWidth] = useState(380);
@@ -99,6 +100,36 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
     }
   };
 
+  const executeDeleteAll = async () => {
+    if (endpoints.length === 0) return;
+    setConfirmDeleteAll(false);
+    const snapshot = [...endpoints];
+    const ids = snapshot.map(ep => ep.id);
+    const results = await Promise.allSettled(
+      ids.map(id => apiFetch(`/api/endpoints/${id}`, { method: "DELETE" })),
+    );
+    const failedIds = new Set<string>();
+    results.forEach((result, idx) => {
+      if (result.status === "rejected") failedIds.add(ids[idx]);
+    });
+    const remaining = snapshot.filter(ep => failedIds.has(ep.id));
+    setEndpoints(remaining);
+    setSecrets(prev => {
+      const next: Record<string, string> = {};
+      for (const ep of remaining) {
+        if (prev[ep.id]) next[ep.id] = prev[ep.id];
+      }
+      return next;
+    });
+    if (!selected || !remaining.some(ep => ep.id === selected.id)) {
+      setSelected(null);
+      setSelectedRequestId(null);
+    }
+    if (failedIds.size > 0) {
+      showError(`Deleted ${ids.length - failedIds.size}/${ids.length} endpoints. ${failedIds.size} failed.`);
+    }
+  };
+
   const copyHookUrl = () => {
     copyTextWithFeedback(hookUrl, setCopied);
   };
@@ -152,6 +183,21 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
         </div>
       )}
 
+      {confirmDeleteAll && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-title">Delete all endpoints?</div>
+            <div className="modal-body">
+              This will delete all endpoints and their captured requests. This action cannot be undone.
+            </div>
+            <div className="modal-actions">
+              <button className="modal-cancel" onClick={() => setConfirmDeleteAll(false)}>Cancel</button>
+              <button className="modal-delete" onClick={executeDeleteAll}>Delete all</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="dashboard-body">
         <EndpointSidebar
           endpoints={endpoints}
@@ -161,6 +207,7 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
           onSelect={ep => { setSelected(ep); setSelectedRequestId(null); }}
           onCreated={handleEndpointCreated}
           onDeleteClick={setConfirmDelete}
+          onDeleteAllClick={() => setConfirmDeleteAll(true)}
           onResizeStart={() => {
             isResizingSidebar.current = true;
             document.body.style.cursor = "col-resize";
