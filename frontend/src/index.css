@@ -131,6 +131,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .ep-input:focus { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
 .add-btn { height: 30px; width: 30px; background: var(--border); color: var(--text-secondary); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 500; transition: all 0.15s; flex-shrink: 0; }
 .add-btn:hover { background: var(--border-hover); color: var(--text); }
+.signature-toggle { margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11px; font-family: 'Inter', sans-serif; user-select: none; }
+.signature-toggle input { width: 14px; height: 14px; accent-color: var(--text-secondary); cursor: pointer; }
 
 /* Header */
 .main-header { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; background: var(--bg-surface); }

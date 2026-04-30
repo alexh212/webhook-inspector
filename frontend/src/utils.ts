@@ -75,12 +75,15 @@ function getEndpointId(data: EndpointCreateApiResponse): string {
   return data.id;
 }
 
-export async function createEndpoint(name: string): Promise<{ endpoint: Endpoint; secret: string }> {
+export async function createEndpoint(
+  name: string,
+  requireSignature = false,
+): Promise<{ endpoint: Endpoint; secret: string }> {
   const normalizedName = name.trim() || "Untitled";
   const res = await apiFetch("/api/endpoints", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: normalizedName }),
+    body: JSON.stringify({ name: normalizedName, require_signature: requireSignature }),
   });
   const data: EndpointCreateApiResponse = await res.json();
   return {

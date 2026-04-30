@@ -20,10 +20,11 @@ export default function EndpointSidebar({
   onSelect, onCreated, onDeleteClick, onDeleteAllClick, onResizeStart, onError,
 }: Props) {
   const [newName, setNewName] = useState("");
+  const [requireSignature, setRequireSignature] = useState(false);
 
   const create = async () => {
     try {
-      const created = await createEndpoint(newName);
+      const created = await createEndpoint(newName, requireSignature);
       onCreated(created.endpoint, created.secret);
       setNewName("");
     } catch (e) {
@@ -55,6 +56,14 @@ export default function EndpointSidebar({
           />
           <button className="add-btn" onClick={create}>+</button>
         </div>
+        <label className="signature-toggle">
+          <input
+            type="checkbox"
+            checked={requireSignature}
+            onChange={e => setRequireSignature(e.target.checked)}
+          />
+          Require signature
+        </label>
       </div>
       <div className="ep-list">
         {loading && <div className="ep-list-loading">Loading...</div>}
