@@ -62,7 +62,7 @@ export default function EndpointSidebar({
             checked={requireSignature}
             onChange={e => setRequireSignature(e.target.checked)}
           />
-          Require signature
+          Require HSHA signature
         </label>
       </div>
       <div className="ep-list">

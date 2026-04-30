@@ -131,7 +131,24 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .ep-input:focus { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
 .add-btn { height: 30px; width: 30px; background: var(--border); color: var(--text-secondary); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 500; transition: all 0.15s; flex-shrink: 0; }
 .add-btn:hover { background: var(--border-hover); color: var(--text); }
-.signature-toggle { margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11px; font-family: 'Inter', sans-serif; user-select: none; }
+.signature-toggle {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  user-select: none;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.signature-toggle:hover { border-color: var(--border-hover); background: var(--bg-raised); }
 .signature-toggle input { width: 14px; height: 14px; accent-color: var(--text-secondary); cursor: pointer; }
 
 /* Header */
@@ -303,8 +320,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Geist', 'Inter',
 .demo-step-title { font-size: 10px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
 .demo-step-text { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
 .demo-arrow { color: var(--text-dim); font-size: 12px; text-align: center; }
-.demo-use-case { font-size: 10px; color: var(--text-muted); line-height: 1.5; display: flex; gap: 6px; flex-wrap: wrap; }
-.demo-use-case-label { color: var(--text); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.demo-examples { border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--bg); }
+.demo-examples-title { font-size: 10px; color: var(--text); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.demo-examples-list { margin: 0; padding-left: 14px; display: grid; gap: 4px; }
+.demo-examples-list li { font-size: 10px; color: var(--text-muted); line-height: 1.45; }
 .demo-cta-line { font-size: 10px; color: var(--text-secondary); line-height: 1.4; }
 .demo-body { display: flex; height: 220px; }
 .demo-feed { width: 160px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 6px; }

@@ -117,12 +117,13 @@ export default function Demo() {
             <div className="demo-step-text">Inspect payload and replay safely</div>
           </div>
         </div>
-        <div className="demo-use-case">
-          <span className="demo-use-case-label">Use case</span>
-          <span>
-            A payment webhook fails in production. You compare the exact payload and signature in seconds,
-            then replay it to verify your fix before customers are impacted.
-          </span>
+        <div className="demo-examples">
+          <div className="demo-examples-title">Webhook examples in real companies</div>
+          <ul className="demo-examples-list">
+            <li><strong>Payments:</strong> Stripe sends `payment.succeeded` and `charge.failed` events to update orders.</li>
+            <li><strong>Code workflows:</strong> GitHub sends push/PR events to trigger CI, deploys, and internal notifications.</li>
+            <li><strong>Commerce:</strong> Shopify sends order/refund/inventory events to keep fulfillment systems in sync.</li>
+          </ul>
         </div>
         <div className="demo-cta-line">
           Auto-updating live sample. Create endpoint to try this with your own webhook source.
