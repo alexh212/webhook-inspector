@@ -204,9 +204,11 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
                     </div>
                   )}
                 </div>
-                <button className="copy-btn" onClick={copyHookUrl}>
-                  {copied ? "✓ Copied" : "Copy URL"}
-                </button>
+                <div className="header-actions">
+                  <button className="copy-btn" onClick={copyHookUrl}>
+                    {copied ? "✓ Copied" : "Copy URL"}
+                  </button>
+                </div>
               </div>
 
               <div className="content-area">
@@ -230,6 +232,15 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
             </>
           )}
         </div>
+      </div>
+
+      <div className="mobile-action-bar">
+        <button className="mobile-action-btn mobile-action-btn-secondary" onClick={createDefault}>
+          + New endpoint
+        </button>
+        <button className="mobile-action-btn" onClick={copyHookUrl} disabled={!selected}>
+          {copied ? "✓ Copied" : "Copy URL"}
+        </button>
       </div>
     </div>
   );
