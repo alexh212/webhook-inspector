@@ -255,6 +255,21 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
                       <div className="demo-step-text">Inspect payload and replay safely</div>
                     </div>
                   </div>
+                  <div className="welcome-examples">
+                    <div className="welcome-examples-title">Company examples</div>
+                    <div className="welcome-example-item">
+                      <span className="company-chip">Stripe</span>
+                      <span className="company-example-text">payment events update order status in your app.</span>
+                    </div>
+                    <div className="welcome-example-item">
+                      <span className="company-chip">GitHub</span>
+                      <span className="company-example-text">push and PR events trigger CI and internal automation.</span>
+                    </div>
+                    <div className="welcome-example-item">
+                      <span className="company-chip">Shopify</span>
+                      <span className="company-example-text">order/refund/inventory events sync fulfillment systems.</span>
+                    </div>
+                  </div>
                 </div>
                 <button className="welcome-cta" onClick={createDefault}>+ New endpoint</button>
                 <Demo />
