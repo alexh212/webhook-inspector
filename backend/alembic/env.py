@@ -1,10 +1,11 @@
-from logging.config import fileConfig
-from alembic import context
-from models import Base
-from dotenv import load_dotenv
 import asyncio
+from logging.config import fileConfig
 
-from database import create_database_engine
+from alembic import context
+from dotenv import load_dotenv
+
+from app.db.models import Base
+from app.db.session import create_database_engine
 
 load_dotenv()
 config = context.config

@@ -2,17 +2,14 @@
  
 Full-stack developer tool for capturing, inspecting, and replaying webhook requests in real time.
  
-## How it works
- 
-Point any webhook at your generated endpoint. Every incoming request appears in the dashboard instantly via WebSocket — no refresh needed. Inspect the full payload, headers, and metadata, then replay it to any destination or let the retry worker handle failures automatically. Each endpoint gets a signing secret for HMAC-SHA256 verification, matching the pattern used by Stripe and GitHub.
- 
 ## Architecture
- 
-- **Ingestion** — captures any HTTP method, headers, body, query params, and source IP
-- **Real-time broadcasting** — Redis pub/sub pushes each request to WebSocket subscribers instantly
-- **Replay engine** — reconstructs and fires stored requests to any destination via httpx
-- **Retry worker** — separate background process, Redis sorted set as a time-delayed queue, exponential backoff (5s → 25s → 125s → 625s), max 5 attempts
-- **Session isolation** — session ID generated in the browser, scoped at the query layer, no login required
+
+Relay captures incoming webhook requests and stores their method, headers, body, and metadata in PostgreSQL.
+The API publishes each capture to Redis so connected WebSocket clients receive events in real time without polling.
+Saved requests can be replayed to external destinations, and failed or 5xx deliveries are queued in Redis for retry with exponential backoff.
+A separate worker process drains that retry queue and records every delivery attempt for later inspection.
+Session IDs scope endpoint and request access at the query layer, so each browser session only sees its own data.
+See `backend/ARCHITECTURE.md` for the backend flow diagram.
  
 ## Tech stack
  
@@ -26,7 +23,7 @@ https://webhook-inspector-sx1y.onrender.com
  
 ```bash
 git clone https://github.com/alexh212/webhook-inspector
-cd webhook-inspector
+cd webhookinspector
  
 # Backend
 cd backend

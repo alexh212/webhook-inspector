@@ -2,6 +2,13 @@ import hmac
 import hashlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
+
+from database import get_db
+from main import app
 from retry import sanitize_headers
 
 TEST_SESSION = "test-session-id-pytest-123456"
@@ -15,6 +22,38 @@ async def test_health(client):
     assert data["status"] == "ok"
     assert data["db"] == "ok"
     assert data["redis"] == "ok"
+
+
+async def test_health_db_failure_returns_503(client):
+    class FailingDB:
+        async def execute(self, *_args, **_kwargs):
+            raise RuntimeError("db unavailable")
+
+    async def override_get_db_failure():
+        yield FailingDB()
+
+    original_override = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = override_get_db_failure
+    try:
+        res = await client.get("/health")
+    finally:
+        if original_override is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = original_override
+
+    assert res.status_code == 503
+    assert res.json()["detail"]["db"] == "error"
+    assert res.json()["detail"]["redis"] == "ok"
+
+
+async def test_health_redis_failure_returns_503(client):
+    with patch("app.runtime.redis_client.ping", AsyncMock(side_effect=RuntimeError("redis unavailable"))):
+        res = await client.get("/health")
+
+    assert res.status_code == 503
+    assert res.json()["detail"]["db"] == "ok"
+    assert res.json()["detail"]["redis"] == "error"
 
 
 async def test_security_headers(client):
@@ -53,6 +92,26 @@ async def test_capture_webhook(client):
         content=body,
         headers={"Content-Type": "application/json", "x-webhook-signature": sig}
     )
+    assert res.status_code == 200
+    assert res.json() == {"status": "received"}
+
+
+async def test_capture_webhook_publish_failure_still_returns_200(client):
+    ep = await client.post("/api/endpoints", json={"name": "Publish Failure Test"}, headers=HEADERS)
+    ep_data = ep.json()
+    ep_id = ep_data["id"]
+    secret = ep_data["secret"]
+
+    body = b'{"event": "payment.succeeded", "amount": 9900}'
+    sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+    with patch("app.runtime.redis_client.publish", AsyncMock(side_effect=RuntimeError("redis publish failed"))):
+        res = await client.post(
+            f"/hooks/{ep_id}",
+            content=body,
+            headers={"Content-Type": "application/json", "x-webhook-signature": sig},
+        )
+
     assert res.status_code == 200
     assert res.json() == {"status": "received"}
 
@@ -117,6 +176,13 @@ async def test_delete_endpoint(client):
 async def test_missing_session_id_returns_401(client):
     res = await client.get("/api/endpoints")
     assert res.status_code == 401
+
+
+def test_websocket_invalid_uuid_rejected():
+    with TestClient(app) as sync_client:
+        with pytest.raises(WebSocketDisconnect):
+            with sync_client.websocket_connect("/ws/endpoints/not-a-uuid?session_id=test-session-id-pytest-123456"):
+                pass
 
 
 async def test_capture_webhook_invalid_endpoint(client):
@@ -266,7 +332,7 @@ def _mock_httpx_client(status_code: int = 200, body: str = "ok"):
 
 async def test_replay_success(client):
     _, req_id = await _capture(client, "Replay Success Test")
-    with patch("retry.httpx.AsyncClient", return_value=_mock_httpx_client(200, '{"ok": true}')):
+    with patch("app.outbound.replay_http.httpx.AsyncClient", return_value=_mock_httpx_client(200, '{"ok": true}')):
         res = await client.post(
             f"/api/requests/{req_id}/replay",
             json={"destination_url": "https://httpbin.org/anything"},
@@ -279,9 +345,51 @@ async def test_replay_success(client):
     assert data["duration_ms"] is not None
 
 
+async def test_replay_http_500_enqueues_retry(client):
+    _, req_id = await _capture(client, "Replay Retry 500 Test")
+    with (
+        patch("app.outbound.replay_http.httpx.AsyncClient", return_value=_mock_httpx_client(500, "upstream failure")),
+        patch("app.services.replay.enqueue_retry", AsyncMock()) as enqueue_retry_mock,
+    ):
+        res = await client.post(
+            f"/api/requests/{req_id}/replay",
+            json={"destination_url": "https://httpbin.org/anything"},
+            headers=HEADERS,
+        )
+
+    assert res.status_code == 200
+    assert res.json()["status_code"] == "500"
+    enqueue_retry_mock.assert_awaited_once()
+
+
+def _mock_httpx_client_error(exc: Exception):
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.request = AsyncMock(side_effect=exc)
+    return mock_client
+
+
+async def test_replay_timeout_enqueues_retry_and_sets_error(client):
+    _, req_id = await _capture(client, "Replay Timeout Test")
+    with (
+        patch("app.outbound.replay_http.httpx.AsyncClient", return_value=_mock_httpx_client_error(httpx.ReadTimeout("timed out"))),
+        patch("app.services.replay.enqueue_retry", AsyncMock()) as enqueue_retry_mock,
+    ):
+        res = await client.post(
+            f"/api/requests/{req_id}/replay",
+            json={"destination_url": "https://httpbin.org/anything"},
+            headers=HEADERS,
+        )
+
+    assert res.status_code == 200
+    assert "Replay request failed" in res.json()["error"]
+    enqueue_retry_mock.assert_awaited_once()
+
+
 async def test_list_attempts_after_replay(client):
     _, req_id = await _capture(client, "Attempts Test")
-    with patch("retry.httpx.AsyncClient", return_value=_mock_httpx_client(200)):
+    with patch("app.outbound.replay_http.httpx.AsyncClient", return_value=_mock_httpx_client(200)):
         await client.post(
             f"/api/requests/{req_id}/replay",
             json={"destination_url": "https://httpbin.org/anything"},
