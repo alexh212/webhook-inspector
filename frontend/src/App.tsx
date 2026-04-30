@@ -155,8 +155,17 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
           </a>
         </div>
         <div className="nav-right">
-          <button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
-            {theme === "dark" ? "☀" : "☾"}
+          <button
+            className={`theme-toggle ${theme === "dark" ? "is-dark" : "is-light"}`}
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            <span className="theme-toggle-track">
+              <span className="theme-toggle-glyph">☀</span>
+              <span className="theme-toggle-glyph">☾</span>
+              <span className="theme-toggle-thumb" />
+            </span>
           </button>
         </div>
       </nav>
@@ -228,6 +237,25 @@ export default function App({ theme, toggleTheme }: { theme: Theme; toggleTheme:
                   Relay captures every HTTP request sent to your endpoint — headers, body, query params — in real time.
                   Inspect the full payload and replay it to any server.
                 </p>
+                <div className="welcome-demo-intro">
+                  <div className="welcome-demo-title">Webhook Inspector Demo</div>
+                  <div className="demo-diagram" aria-label="Webhook flow diagram">
+                    <div className="demo-step">
+                      <div className="demo-step-title">Webhook source</div>
+                      <div className="demo-step-text">Stripe, GitHub, Shopify sends an event</div>
+                    </div>
+                    <div className="demo-arrow">→</div>
+                    <div className="demo-step">
+                      <div className="demo-step-title">Relay capture</div>
+                      <div className="demo-step-text">Store headers + body instantly</div>
+                    </div>
+                    <div className="demo-arrow">→</div>
+                    <div className="demo-step">
+                      <div className="demo-step-title">Debug fast</div>
+                      <div className="demo-step-text">Inspect payload and replay safely</div>
+                    </div>
+                  </div>
+                </div>
                 <button className="welcome-cta" onClick={createDefault}>+ New endpoint</button>
                 <Demo />
               </div>

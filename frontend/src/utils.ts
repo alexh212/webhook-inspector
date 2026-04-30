@@ -114,10 +114,11 @@ export async function copyTextWithFeedback(
 export type Theme = "dark" | "light";
 
 export function getStoredTheme(): Theme {
-  return (localStorage.getItem("wi_theme") as Theme) || "dark";
+  const stored = localStorage.getItem("wi_theme");
+  if (stored === "dark" || stored === "light") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function applyTheme(theme: Theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("wi_theme", theme);
 }

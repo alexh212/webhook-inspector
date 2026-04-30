@@ -7,8 +7,30 @@ import { type Theme, getStoredTheme, applyTheme } from './utils'
 
 export function Root() {
   const [theme, setTheme] = useState<Theme>(getStoredTheme);
+  const [hasManualTheme, setHasManualTheme] = useState<boolean>(() => {
+    const stored = localStorage.getItem("wi_theme");
+    return stored === "dark" || stored === "light";
+  });
+
   useEffect(() => { applyTheme(theme); }, [theme]);
-  const toggleTheme = useCallback(() => setTheme(prev => prev === "dark" ? "light" : "dark"), []);
+
+  useEffect(() => {
+    if (hasManualTheme) return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setTheme(e.matches ? "dark" : "light");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [hasManualTheme]);
+
+  const toggleTheme = useCallback(() => {
+    setHasManualTheme(true);
+    setTheme(prev => {
+      const next = prev === "dark" ? "light" : "dark";
+      localStorage.setItem("wi_theme", next);
+      return next;
+    });
+  }, []);
+
   return <App theme={theme} toggleTheme={toggleTheme} />;
 }
 
